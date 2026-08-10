@@ -273,6 +273,8 @@
   }
   .weight-input:focus { border-color: var(--gold); }
   .weight-label { font-size: 0.6rem; color: var(--gray); text-align: center; }
+  .weight-min-note { font-size: 0.58rem; color: var(--gray); text-align: center; margin-top: 2px; line-height: 1.3; }
+  .weight-min-soft { color: var(--wine); }
 
   .weight-stepper { display: flex; align-items: center; gap: 4px; }
   .wstep-btn {
@@ -383,7 +385,7 @@
   .cart-weight-input:focus { border-color: var(--gold); }
 
   .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
-  .delivery-section { margin-bottom: 12px; }
+  .delivery-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--light-border); }
   .delivery-methods { display: flex; gap: 6px; margin-bottom: 10px; }
   .method-btn {
     flex: 1;
@@ -502,8 +504,9 @@
 <div class="cart-drawer" id="cartDrawer">
   <div class="drawer-handle"></div>
   <div class="drawer-header"><h2>Ваш заказ</h2></div>
-  <div class="drawer-body" id="cartBody"></div>
-  <div class="drawer-footer">
+  <div class="drawer-body">
+    <div id="cartBody"></div>
+
     <div class="delivery-section">
       <div class="delivery-methods">
         <button class="method-btn active" id="methodBtn-courier" onclick="setDeliveryMethod('courier')">Курьером</button>
@@ -537,7 +540,9 @@
       <label class="field-label">Номер телефона</label>
       <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" oninput="renderCart()">
     </div>
+  </div>
 
+  <div class="drawer-footer">
     <div class="total-row">
       <span class="total-label">Итого</span>
       <span class="total-sum" id="totalSum">0 ₽</span>
@@ -612,7 +617,11 @@ function askConfirm(message) {
 
 // Возвращает {weight, note} после проверки минимума/шага/подтверждения,
 // или null если ввод некорректен. Верхнего предела веса нет.
-async function resolveWeight(rawWeight) {
+// productMinGrams — собственный минимум товара из MinQty (например «от 400г»),
+// если он больше общего MIN_WEIGHT. Жёсткий пол всегда MIN_WEIGHT (300г):
+// меньше него не даём в любом случае, а вот между 300 и productMinGrams —
+// разрешаем, но по-дружески предупреждаем.
+async function resolveWeight(rawWeight, productMinGrams) {
   if (!rawWeight || rawWeight <= 0) {
     showToast('Введите вес в граммах');
     return null;
@@ -623,9 +632,14 @@ async function resolveWeight(rawWeight) {
     return null;
   }
   let note = '';
+  if (productMinGrams && productMinGrams > MIN_WEIGHT && weight < productMinGrams) {
+    const ok = await askConfirm(`Обычно минимум для этого товара — ${productMinGrams} г, но можем поискать и ${weight} г 🙂 Добавить?`);
+    if (!ok) return null;
+    note = `меньше обычного минимума (${productMinGrams}г)`;
+  }
   if (weight > CONFIRM_ABOVE) {
     const single = await askConfirm(`${weight} г — отрезать одним куском?`);
-    note = single ? 'одним куском' : 'разбить на куски';
+    note = note ? note + '; ' + (single ? 'одним куском' : 'разбить на куски') : (single ? 'одним куском' : 'разбить на куски');
   }
   return { weight, note };
 }
@@ -755,6 +769,14 @@ function mapRecord(rec) {
     pieceWeightGrams = approxWeightGrams;
   }
 
+  // Для развесных товаров собственный минимум (напр. «от 400г») может быть
+  // выше общего порога в 300г — тогда используем его как ориентир (см. resolveWeight)
+  let minWeightGrams = null;
+  if (priceMode === 'weight') {
+    const g = parseApproxWeightGrams(minQty);
+    if (g && g > MIN_WEIGHT) minWeightGrams = g;
+  }
+
   // У большинства approx-товаров (сыры) цена в базе — за 100г.
   // Но хамон/прошутто и подобные мясные деликатесы в прайсе указаны за 1 КГ —
   // делим на 1000, а не на 100. Если попадутся ещё такие категории, добавьте
@@ -777,6 +799,7 @@ function mapRecord(rec) {
     priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
     unitPrice,       // фактическая цена за 1 шт/1 позицию для approxPiece и flat
     pieceWeightGrams,
+    minWeightGrams,  // собственный минимум развесного товара, если выше общего
     unit: priceMode === 'weight' ? "100г" : "шт",
     minQty: minQty || null,
     inStock: isAvailable(rec),
@@ -875,6 +898,12 @@ function renderProducts() {
       if (!p.inStock) {
         actionHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
       } else if (p.weighted) {
+        const minNote = p.minWeightGrams
+          ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft">(можем и ${MIN_WEIGHT}г 🙂)</span></div>`
+          : '';
+        const cartTotal = inCart && cartItem.weight
+          ? `<div class="line-total">В корзине: ${cartItem.weight}г = ${Math.round(p.price * cartItem.weight / 100)}₽</div>`
+          : '';
         actionHtml = `
           <div>
             <div class="weight-stepper">
@@ -883,8 +912,10 @@ function renderProducts() {
               <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
             </div>
             <div class="weight-label">граммы</div>
+            ${minNote}
           </div>
           <button class="add-btn" onclick="addWeighted(${p.id})">+</button>
+          ${cartTotal}
         `;
       } else {
         if (inCart) {
@@ -938,7 +969,7 @@ async function addWeighted(id) {
   const input = document.getElementById('w'+id);
   const rawWeight = parseFloat(input.value);
 
-  const result = await resolveWeight(rawWeight);
+  const result = await resolveWeight(rawWeight, p.minWeightGrams);
   if (!result) return;
   const { weight, note } = result;
 
@@ -952,6 +983,7 @@ async function addWeighted(id) {
   }
   input.value = '';
   updateCartCount();
+  renderProducts();
   showToast('Добавлено: ' + p.name.substring(0,25)+'…');
 }
 
@@ -986,11 +1018,12 @@ async function stepCartWeight(id, delta) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
   const base = item.weight || (MIN_WEIGHT - WEIGHT_STEP);
-  const result = await resolveWeight(base + delta * WEIGHT_STEP);
+  const result = await resolveWeight(base + delta * WEIGHT_STEP, item.product.minWeightGrams);
   if (!result) { renderCart(); return; }
   item.weight = result.weight;
   if (result.note) item.note = result.note;
   renderCart();
+  renderProducts();
 }
 
 function updateCartCount() {
@@ -1080,11 +1113,12 @@ async function updateWeight(id, val) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
 
-  const result = await resolveWeight(parseFloat(val));
+  const result = await resolveWeight(parseFloat(val), item.product.minWeightGrams);
   if (!result) { renderCart(); return; } // откатываем поле к прежнему значению
   item.weight = result.weight;
   if (result.note) item.note = result.note;
   renderCart();
+  renderProducts();
 }
 
 // ---- Способ доставки ----
