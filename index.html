@@ -271,6 +271,57 @@
   .weight-input:focus { border-color: var(--gold); }
   .weight-label { font-size: 0.6rem; color: var(--gray); text-align: center; }
 
+  .weight-stepper { display: flex; align-items: center; gap: 4px; }
+  .wstep-btn {
+    background: var(--light-border);
+    border: none;
+    border-radius: 6px;
+    width: 22px;
+    height: 22px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dark);
+    flex-shrink: 0;
+  }
+  .wstep-btn:active { background: var(--gold); }
+
+  .confirm-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(28,23,18,0.55);
+    z-index: 400;
+    align-items: center;
+    justify-content: center;
+  }
+  .confirm-overlay.open { display: flex; }
+  .confirm-box {
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 22px 20px;
+    width: 84%;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+  .confirm-box p { font-size: 0.85rem; color: var(--dark); margin-bottom: 16px; line-height: 1.4; }
+  .confirm-actions { display: flex; gap: 10px; }
+  .confirm-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .confirm-no { background: var(--light-border); color: var(--dark); }
+  .confirm-yes { background: var(--wine); color: #fff; }
+
   .qty-controls { display: flex; align-items: center; gap: 6px; }
   .qty-btn {
     background: var(--light-border);
@@ -322,13 +373,65 @@
   .cart-weight-input:focus { border-color: var(--gold); }
 
   .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
-  .delivery-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .delivery-label { font-size: 0.75rem; color: var(--gray); }
-  .delivery-input {
-    width: 100px; padding: 5px 8px; border: 1.5px solid var(--light-border); border-radius: 6px;
-    font-size: 0.78rem; text-align: right; font-family: 'Montserrat', sans-serif; outline: none;
+  .delivery-section { margin-bottom: 12px; }
+  .delivery-methods { display: flex; gap: 6px; margin-bottom: 10px; }
+  .method-btn {
+    flex: 1;
+    background: #fff;
+    border: 1.5px solid var(--light-border);
+    border-radius: 8px;
+    padding: 8px 4px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--gray);
+    cursor: pointer;
+    text-align: center;
   }
-  .delivery-input:focus { border-color: var(--gold); }
+  .method-btn.active { background: var(--dark); border-color: var(--dark); color: var(--gold); }
+
+  .field-label { font-size: 0.68rem; color: var(--gray); margin-bottom: 4px; display: block; }
+  .field-input, .field-textarea, .field-select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1.5px solid var(--light-border);
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    color: var(--dark);
+    outline: none;
+    background: #fff;
+    margin-bottom: 10px;
+  }
+  .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: var(--gold); }
+  .field-textarea { resize: vertical; min-height: 54px; font-family: 'Montserrat', sans-serif; }
+  .field-input:disabled, .field-textarea:disabled, .field-select:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
+
+  .field-row { display: flex; gap: 8px; align-items: flex-start; }
+  .field-row .field-select { flex: 1; }
+
+  .express-row { display: flex; align-items: center; gap: 6px; margin: -2px 0 10px; }
+  .express-row label { font-size: 0.7rem; color: var(--gray); }
+  .express-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--wine); }
+
+  .send-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .send-btn {
+    padding: 11px 6px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .send-tg { background: #2AABEE; color: #fff; }
+  .send-wa { background: #25D366; color: #fff; }
+  .send-max { background: #7C6EF2; color: #fff; }
+  .send-copy { background: var(--light-border); color: var(--dark); grid-column: span 2; }
 
   .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .total-label { font-size: 0.85rem; font-weight: 500; }
@@ -391,19 +494,65 @@
   <div class="drawer-header"><h2>Ваш заказ</h2></div>
   <div class="drawer-body" id="cartBody"></div>
   <div class="drawer-footer">
-    <div class="delivery-row">
-      <span class="delivery-label">Доставка (₽)</span>
-      <input class="delivery-input" type="number" id="deliveryInput" placeholder="—" oninput="renderCart()">
+    <div class="delivery-section">
+      <div class="delivery-methods">
+        <button class="method-btn active" id="methodBtn-courier" onclick="setDeliveryMethod('courier')">Курьером</button>
+        <button class="method-btn" id="methodBtn-pickup" onclick="setDeliveryMethod('pickup')">Самовывоз</button>
+        <button class="method-btn" id="methodBtn-cdek" onclick="setDeliveryMethod('cdek')">СДЭК</button>
+      </div>
+
+      <div id="courierFields">
+        <label class="field-label">Адрес доставки</label>
+        <textarea class="field-textarea" id="addressInput" placeholder="Введите адрес доставки" oninput="renderCart()"></textarea>
+
+        <div class="field-row">
+          <div style="flex:1">
+            <label class="field-label">Удобное время</label>
+            <select class="field-select" id="timeSelect" onchange="renderCart()"></select>
+          </div>
+        </div>
+        <div class="express-row">
+          <input type="checkbox" id="expressCheck" onchange="onExpressToggle()">
+          <label for="expressCheck">Срочная доставка (по предоплате)</label>
+        </div>
+      </div>
+
+      <div id="cdekFields" style="display:none">
+        <label class="field-label">Город СДЭК</label>
+        <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" oninput="renderCart()">
+        <label class="field-label">Пункт выдачи / адрес СДЭК</label>
+        <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ СДЭК" oninput="renderCart()">
+      </div>
+
+      <label class="field-label">Номер телефона</label>
+      <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" oninput="renderCart()">
     </div>
+
     <div class="total-row">
       <span class="total-label">Итого</span>
       <span class="total-sum" id="totalSum">0 ₽</span>
     </div>
-    <button class="copy-btn" onclick="copyOrder()">📋 Скопировать заказ</button>
+
+    <div class="send-buttons">
+      <button class="send-btn send-tg" onclick="sendOrder('telegram')">✈️ Telegram</button>
+      <button class="send-btn send-wa" onclick="sendOrder('whatsapp')">💬 WhatsApp</button>
+      <button class="send-btn send-max" onclick="sendOrder('max')">🅼 MAX</button>
+      <button class="send-btn send-copy" onclick="sendOrder('copy')">📋 Скопировать заказ</button>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="confirm-overlay" id="confirmModal">
+  <div class="confirm-box">
+    <p id="confirmText"></p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-no" id="confirmNo">Нет</button>
+      <button class="confirm-btn confirm-yes" id="confirmYes">Да</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ===================== НАСТРОЙКИ ===================== */
@@ -413,13 +562,16 @@ const CONFIG = {
   NOCODB_URL: "https://app.nocodb.com",
   NOCODB_TOKEN: "nc_pat_3ggLVlEw8gthOQwhqS6OFvx7YsMSscKBve35f8lD",
   TABLE_ID: "mzyn24rg2qoo8xs",
+  TELEGRAM_USERNAME: "MrMouseShop",
+  WHATSAPP_PHONE: "79800200095",
+  MAX_LINK: "https://max.ru/u/f9LHodD0cOJk6YYur1bNqQ3qlKVNP5AF9J-a7tFKcjnedwldsVXXbCxz-8Y",
 };
 /* ======================================================= */
 
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-// ---- Правила заказа на развес: минимум 300г, шаг 50г, подтверждение при >600г ----
+// ---- Правила заказа на развес: минимум 300г, шаг 50г, подтверждение при >600г (вес не ограничен сверху) ----
 const MIN_WEIGHT = 300;
 const WEIGHT_STEP = 50;
 const CONFIRM_ABOVE = 600;
@@ -428,18 +580,28 @@ function roundToStep(w, step = WEIGHT_STEP) {
   return Math.round(w / step) * step;
 }
 
+// Свой модальный confirm — не зависит от tg.showConfirm
+// (в некоторых клиентах Telegram showConfirm не отрабатывал и «вешал» добавление в корзину)
 function askConfirm(message) {
   return new Promise(resolve => {
-    if (tg?.showConfirm) {
-      tg.showConfirm(message, ok => resolve(ok));
-    } else {
-      resolve(window.confirm(message));
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmText').textContent = message;
+    modal.classList.add('open');
+    const yesBtn = document.getElementById('confirmYes');
+    const noBtn = document.getElementById('confirmNo');
+    function cleanup(result) {
+      modal.classList.remove('open');
+      yesBtn.onclick = null;
+      noBtn.onclick = null;
+      resolve(result);
     }
+    yesBtn.onclick = () => cleanup(true);
+    noBtn.onclick = () => cleanup(false);
   });
 }
 
 // Возвращает {weight, note} после проверки минимума/шага/подтверждения,
-// или null если ввод некорректен.
+// или null если ввод некорректен. Верхнего предела веса нет.
 async function resolveWeight(rawWeight) {
   if (!rawWeight || rawWeight <= 0) {
     showToast('Введите вес в граммах');
@@ -458,27 +620,31 @@ async function resolveWeight(rawWeight) {
   return { weight, note };
 }
 
+// Шаг +/- для поля веса в карточке товара (ещё не в корзине)
+function stepProductWeight(id, delta) {
+  const input = document.getElementById('w' + id);
+  let v = parseFloat(input.value);
+  if (!v || isNaN(v)) v = delta > 0 ? MIN_WEIGHT : 0;
+  else v = v + delta * WEIGHT_STEP;
+  if (v < 0) v = 0;
+  input.value = v || '';
+}
+
 let products = [];
 let CATS = ["Все"];
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
 
-async function fetchAllRecords() {
-  let all = [], offset = 0;
-  while (true) {
-    const params = new URLSearchParams({ limit: 200, offset });
-    const res = await fetch(`${CONFIG.NOCODB_URL}/api/v2/tables/${CONFIG.TABLE_ID}/records?${params}`, {
-      headers: { "xc-token": CONFIG.NOCODB_TOKEN }
-    });
-    if (!res.ok) throw new Error("NocoDB error " + res.status);
-    const data = await res.json();
-    const page = data.list || [];
-    all = all.concat(page);
-    if (!page.length || data.pageInfo?.isLastPage) break;
-    offset += page.length;
-    if (all.length > 5000) break;
-  }
-  return all;
+// Загружаем каталог постранично: первая страница сразу идёт в отрисовку (быстрый старт),
+// остальные страницы дозагружаются в фоне и дорисовываются, когда готовы.
+async function fetchPage(offset, limit = 200) {
+  const params = new URLSearchParams({ limit, offset });
+  const res = await fetch(`${CONFIG.NOCODB_URL}/api/v2/tables/${CONFIG.TABLE_ID}/records?${params}`, {
+    headers: { "xc-token": CONFIG.NOCODB_TOKEN }
+  });
+  if (!res.ok) throw new Error("NocoDB error " + res.status);
+  const data = await res.json();
+  return { page: data.list || [], isLast: !!data.pageInfo?.isLastPage };
 }
 
 function isAvailable(p) {
@@ -501,37 +667,99 @@ function countryFlag(country) {
   return "🧀";
 }
 
+// Ищет вес (в граммах) внутри текста типа "~1кг", "около 950г", "1,2 кг"
+function parseApproxWeightGrams(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  const kgMatch = t.match(/(\d+(?:[.,]\d+)?)\s*кг/);
+  if (kgMatch) return Math.round(parseFloat(kgMatch[1].replace(',', '.')) * 1000);
+  const gMatch = t.match(/(\d+(?:[.,]\d+)?)\s*г(?:р)?\b/);
+  if (gMatch) return Math.round(parseFloat(gMatch[1].replace(',', '.')));
+  return null;
+}
+
+function isApproxText(text) {
+  const t = (text || "").toLowerCase();
+  return t.includes('~') || t.includes('прибл') || t.includes('около') || t.includes('примерно');
+}
+
 let idCounter = 1;
 function mapRecord(rec) {
   const rawCat = (rec.Category || "Без категории").trim();
   const isNew = /new/i.test(rawCat) || /new/i.test(rec.Name || "");
   const cleanCat = rawCat.replace(/NEW/gi, "").replace(/🔥/g, "").trim() || "Без категории";
   const minQty = (rec.MinQty || "").trim();
-  // Товар на развес — только если в MinQty есть указание на вес (граммы),
-  // и НЕТ указания "шт" (штучные товары с фиксированным весом упаковки — не развес)
   const minQtyLower = minQty.toLowerCase();
-  const weighted = !!minQty && !minQtyLower.includes("шт");
+  const price = parseFloat(rec.Price) || 0;
+  const hasPieceWord = minQtyLower.includes("шт");
+
+  // Три режима цены:
+  // 'weight'      — классический развес, покупатель сам вводит граммы (300г мин, шаг 50г)
+  // 'approxPiece' — штука с приблизительным весом (напр. "~1кг", "около 950г"):
+  //                 цена в базе указана за 100г, итог считаем по весу из MinQty
+  // 'flat'        — обычный товар или штучный товар с точным весом: цена в базе — за штуку целиком
+  let priceMode = 'flat';
+  let pieceWeightGrams = null;
+
+  if (minQty && !hasPieceWord) {
+    priceMode = 'weight';
+  } else if (hasPieceWord && isApproxText(minQty)) {
+    const g = parseApproxWeightGrams(minQty);
+    if (g) { priceMode = 'approxPiece'; pieceWeightGrams = g; }
+  }
+
+  const unitPrice = priceMode === 'approxPiece'
+    ? Math.round(price * pieceWeightGrams / 100)
+    : price;
+
   return {
     id: idCounter++,
     name: rec.Name || "Без названия",
     cat: cleanCat,
     country: countryFlag(rec.Country),
-    price: parseFloat(rec.Price) || 0,
-    unit: weighted ? "100г" : "шт",
+    price,          // цена как в базе (за 100г для weight/approxPiece, за шт для flat)
+    unitPrice,       // фактическая цена за 1 шт/1 позицию для approxPiece и flat
+    pieceWeightGrams,
+    unit: priceMode === 'weight' ? "100г" : "шт",
     minQty: minQty || null,
     inStock: isAvailable(rec),
     isNew,
-    weighted,
+    priceMode,
+    weighted: priceMode === 'weight', // алиас для обратной совместимости
     photo: photoUrl(rec),
   };
 }
 
+// Определяем стартовую категорию — раздел с сырами, чтобы первый экран
+// не ждал загрузки вообще всего каталога
+function pickDefaultCategory() {
+  const cheeseCat = CATS.find(c => c !== "Все" && /сыр/i.test(c));
+  return cheeseCat || (CATS[1] || "Все");
+}
+
 async function loadCatalog() {
-  const raw = await fetchAllRecords();
-  products = raw.filter(isAvailable).map(mapRecord);
+  // 1) первая страница — сразу отрисовываем, чтобы сайт не «висел» на пустом экране
+  const first = await fetchPage(0);
+  products = first.page.filter(isAvailable).map(mapRecord);
   CATS = ["Все", ...new Set(products.map(p => p.cat))];
+  activeCategory = pickDefaultCategory();
   renderCategories();
   renderProducts();
+
+  if (first.isLast) return;
+
+  // 2) остальное — в фоне, страница за страницей, с перерисовкой по мере поступления
+  let offset = first.page.length;
+  while (true) {
+    const { page, isLast } = await fetchPage(offset);
+    if (!page.length) break;
+    products = products.concat(page.filter(isAvailable).map(mapRecord));
+    offset += page.length;
+    CATS = ["Все", ...new Set(products.map(p => p.cat))];
+    renderCategories();
+    renderProducts();
+    if (isLast || offset > 5000) break;
+  }
 }
 
 function renderCategories() {
@@ -587,7 +815,11 @@ function renderProducts() {
       } else if (p.weighted) {
         actionHtml = `
           <div>
-            <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50">
+            <div class="weight-stepper">
+              <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
+              <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50">
+              <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
+            </div>
             <div class="weight-label">граммы</div>
           </div>
           <button class="add-btn" onclick="addWeighted(${p.id})">+</button>
@@ -606,6 +838,12 @@ function renderProducts() {
         }
       }
 
+      const priceHtml = p.priceMode === 'weight'
+        ? `${p.price}₽/${p.unit}`
+        : p.priceMode === 'approxPiece'
+          ? `${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/100г)</span>`
+          : `${p.unitPrice}₽`;
+
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
           <div class="prod-thumb">${p.photo ? `<img loading="lazy" src="${p.photo}" alt="">` : ''}</div>
@@ -615,7 +853,7 @@ function renderProducts() {
               ${p.isNew ? '<span class="badge-new">new</span>' : ''}
             </div>
             <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
-            <div class="prod-price">${p.weighted ? p.price+'₽/'+p.unit : p.price+'₽'}</div>
+            <div class="prod-price">${priceHtml}</div>
             ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
           </div>
           <div class="prod-action">${actionHtml}</div>
@@ -680,6 +918,17 @@ function removeFromCart(id) {
   renderProducts();
 }
 
+async function stepCartWeight(id, delta) {
+  const item = cart.find(c=>c.product.id===id);
+  if (!item) return;
+  const base = item.weight || (MIN_WEIGHT - WEIGHT_STEP);
+  const result = await resolveWeight(base + delta * WEIGHT_STEP);
+  if (!result) { renderCart(); return; }
+  item.weight = result.weight;
+  if (result.note) item.note = result.note;
+  renderCart();
+}
+
 function updateCartCount() {
   document.getElementById('cartCount').textContent = cart.length;
 }
@@ -699,7 +948,6 @@ function toggleCart() {
 
 function renderCart() {
   const body = document.getElementById('cartBody');
-  const delivery = parseFloat(document.getElementById('deliveryInput').value) || 0;
 
   if (!cart.length) {
     body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
@@ -707,7 +955,7 @@ function renderCart() {
     return;
   }
 
-  let total = delivery;
+  let total = 0;
   let html = '';
 
   for (const item of cart) {
@@ -715,7 +963,7 @@ function renderCart() {
     let linePrice = null;
     let detailText = '';
 
-    if (p.weighted) {
+    if (p.priceMode === 'weight') {
       if (item.weight) {
         linePrice = Math.round(p.price * item.weight / 100);
         detailText = item.weight + 'г × ' + p.price + '₽/100г';
@@ -724,8 +972,9 @@ function renderCart() {
         detailText = '— г × ' + p.price + '₽/100г (уточнить)';
       }
     } else {
-      linePrice = p.price * item.qty;
-      detailText = item.qty > 1 ? item.qty + ' шт × ' + p.price + '₽' : p.price + '₽';
+      linePrice = p.unitPrice * item.qty;
+      detailText = item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
+      if (p.priceMode === 'approxPiece') detailText += ` (~${p.pieceWeightGrams}г/шт)`;
     }
 
     if (linePrice) total += linePrice;
@@ -735,10 +984,12 @@ function renderCart() {
         <div style="flex:1">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
-          ${p.weighted ? `
+          ${p.priceMode === 'weight' ? `
             <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+              <button class="wstep-btn" onclick="stepCartWeight(${p.id},-1)">−</button>
               <input class="cart-weight-input" type="number" value="${item.weight||''}" placeholder="от 300г"
                 onchange="updateWeight(${p.id},this.value)" min="300" step="50">
+              <button class="wstep-btn" onclick="stepCartWeight(${p.id},1)">+</button>
               <span style="font-size:0.65rem;color:var(--gray)">г</span>
             </div>
           ` : `
@@ -772,53 +1023,160 @@ async function updateWeight(id, val) {
   renderCart();
 }
 
-function copyOrder() {
-  if (!cart.length) { showToast('Корзина пуста'); return; }
-  const delivery = parseFloat(document.getElementById('deliveryInput').value) || 0;
-  let lines = ['Ваш заказ:\n'];
-  let total = delivery;
+// ---- Способ доставки ----
+let deliveryMethod = 'courier'; // courier | pickup | cdek
+
+function setDeliveryMethod(method) {
+  deliveryMethod = method;
+  document.getElementById('methodBtn-courier').classList.toggle('active', method === 'courier');
+  document.getElementById('methodBtn-pickup').classList.toggle('active', method === 'pickup');
+  document.getElementById('methodBtn-cdek').classList.toggle('active', method === 'cdek');
+
+  document.getElementById('cdekFields').style.display = method === 'cdek' ? 'block' : 'none';
+
+  const addressInput = document.getElementById('addressInput');
+  const timeSelect = document.getElementById('timeSelect');
+  const expressCheck = document.getElementById('expressCheck');
+  const isCourier = method === 'courier';
+  addressInput.disabled = !isCourier;
+  timeSelect.disabled = !isCourier;
+  expressCheck.disabled = !isCourier;
+  if (method === 'pickup') {
+    addressInput.placeholder = 'Самовывоз: Марьино, ул. Донецкая, д 19';
+  } else {
+    addressInput.placeholder = 'Введите адрес доставки';
+  }
+  renderCart();
+}
+
+// Слоты доставки: с 10:00 до 21:00, длительность окна 4 часа, шаг 1 час
+function buildTimeSlots() {
+  const slots = [];
+  for (let start = 10; start + 4 <= 21; start++) {
+    slots.push(`${start}:00 – ${start+4}:00`);
+  }
+  return slots;
+}
+
+function initTimeSelect() {
+  const sel = document.getElementById('timeSelect');
+  sel.innerHTML = '<option value="">Выберите время</option>' +
+    buildTimeSlots().map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function onExpressToggle() {
+  const checked = document.getElementById('expressCheck').checked;
+  document.getElementById('timeSelect').disabled = checked;
+  renderCart();
+}
+
+// Собирает текст заказа: состав + способ получения + контакты
+function buildOrderText() {
+  const lines = ['Заказ Mr. Mouse:\n'];
+  let total = 0;
 
   cart.forEach((item, i) => {
     const p = item.product;
     let line = `${i+1}. ${p.name}`;
-    if (p.weighted) {
+    if (p.priceMode === 'weight') {
       if (item.weight) {
         const sum = Math.round(p.price * item.weight / 100);
-        line += ` (${item.weight}г) * ${p.price}₽/100гр = ${sum}₽`;
+        line += ` (${item.weight}г) × ${p.price}₽/100г = ${sum}₽`;
         if (item.note) line += ` [${item.note}]`;
         total += sum;
       } else {
-        line += ` (0.) * ${p.price}₽/100гр =`;
+        line += ` (вес не указан) × ${p.price}₽/100г`;
       }
     } else {
-      if (item.qty > 1) {
-        const sum = p.price * item.qty;
-        line += ` - ${p.price}₽ * ${item.qty} = ${sum}₽`;
-        total += sum;
-      } else {
-        line += ` - ${p.price}₽`;
-        total += p.price;
-      }
+      const sum = p.unitPrice * item.qty;
+      line += item.qty > 1 ? ` — ${item.qty} шт × ${p.unitPrice}₽ = ${sum}₽` : ` — ${p.unitPrice}₽`;
+      total += sum;
     }
     lines.push(line);
   });
 
   lines.push('');
-  lines.push(`Доставка: ${delivery ? delivery+'₽' : ''}`);
+
+  const phone = document.getElementById('phoneInput').value.trim();
+  const express = document.getElementById('expressCheck').checked;
+
+  if (deliveryMethod === 'courier') {
+    const address = document.getElementById('addressInput').value.trim();
+    const time = document.getElementById('timeSelect').value;
+    lines.push('Способ получения: курьером');
+    lines.push(`Адрес: ${address || '—'}`);
+    if (express) lines.push('Срочная доставка (по предоплате)');
+    else lines.push(`Время: ${time || '—'}`);
+  } else if (deliveryMethod === 'pickup') {
+    lines.push('Способ получения: самовывоз (Марьино, ул. Донецкая, д 19)');
+  } else if (deliveryMethod === 'cdek') {
+    const city = document.getElementById('cdekCity').value.trim();
+    const cdekAddress = document.getElementById('cdekAddress').value.trim();
+    lines.push('Способ получения: СДЭК');
+    lines.push(`Город: ${city || '—'}`);
+    lines.push(`Пункт выдачи/адрес: ${cdekAddress || '—'}`);
+  }
+
+  lines.push(`Телефон: ${phone || '—'}`);
+  lines.push('');
   lines.push(`Итого: ${total}₽`);
 
-  const text = lines.join('\n');
-  navigator.clipboard.writeText(text).then(() => {
-    showToast('✅ Заказ скопирован!');
-  }).catch(() => {
+  return lines.join('\n');
+}
+
+function validateOrderFields() {
+  if (!cart.length) { showToast('Корзина пуста'); return false; }
+  const phone = document.getElementById('phoneInput').value.trim();
+  if (!phone) { showToast('Укажите номер телефона'); return false; }
+  if (deliveryMethod === 'courier') {
+    const address = document.getElementById('addressInput').value.trim();
+    if (!address) { showToast('Укажите адрес доставки'); return false; }
+    const express = document.getElementById('expressCheck').checked;
+    const time = document.getElementById('timeSelect').value;
+    if (!express && !time) { showToast('Выберите время доставки или отметьте «срочно»'); return false; }
+  } else if (deliveryMethod === 'cdek') {
+    const city = document.getElementById('cdekCity').value.trim();
+    const cdekAddress = document.getElementById('cdekAddress').value.trim();
+    if (!city || !cdekAddress) { showToast('Укажите город и пункт выдачи СДЭК'); return false; }
+  }
+  return true;
+}
+
+function copyTextToClipboard(text) {
+  return navigator.clipboard.writeText(text).catch(() => {
     const ta = document.createElement('textarea');
     ta.value = text;
     document.body.appendChild(ta);
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    showToast('✅ Заказ скопирован!');
   });
+}
+
+function sendOrder(channel) {
+  if (!validateOrderFields()) return;
+  const text = buildOrderText();
+
+  if (channel === 'copy') {
+    copyTextToClipboard(text).then(() => showToast('✅ Заказ скопирован!'));
+    return;
+  }
+
+  if (channel === 'telegram') {
+    const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encodeURIComponent(text)}`;
+    if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+  } else if (channel === 'whatsapp') {
+    const url = `https://wa.me/${CONFIG.WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
+    if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+  } else if (channel === 'max') {
+    // У MAX нет ссылки «написать по номеру с текстом» — копируем текст и открываем профиль,
+    // остаётся вставить сообщение вручную.
+    copyTextToClipboard(text).then(() => {
+      showToast('Текст скопирован — вставьте его в чат в MAX');
+      const url = CONFIG.MAX_LINK;
+      if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
+    });
+  }
 }
 
 function showToast(msg) {
@@ -827,6 +1185,8 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2200);
 }
+
+initTimeSelect();
 
 loadCatalog().catch(err => {
   document.getElementById('productList').innerHTML =
