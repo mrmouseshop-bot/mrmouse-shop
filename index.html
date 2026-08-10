@@ -471,6 +471,19 @@
   .send-max { background: #7C6EF2; color: #fff; }
   .send-copy { background: var(--light-border); color: var(--dark); }
 
+  .cdek-find-link {
+    display: block;
+    text-align: center;
+    background: var(--dark);
+    color: var(--gold);
+    text-decoration: none;
+    padding: 9px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
   .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .total-label { font-size: 0.85rem; font-weight: 500; }
   .total-sum { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; color: var(--wine); }
@@ -594,10 +607,11 @@
       </div>
 
       <div id="cdekFields" style="display:none">
+        <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener" class="cdek-find-link">🔍 Найти пункт СДЭК на карте</a>
         <label class="field-label">Город СДЭК</label>
         <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" oninput="renderCart()">
         <label class="field-label">Пункт выдачи / адрес СДЭК</label>
-        <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ СДЭК" oninput="renderCart()">
+        <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" oninput="renderCart()">
       </div>
 
       <label class="field-label">Номер телефона</label>
