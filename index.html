@@ -799,13 +799,17 @@ function mapRecord(rec) {
   // Приблизительный вес ищем и в MinQty, и в названии (~2.5кг, ~1.8кг и т.п.)
   const combinedText = rawName + " " + minQty;
   const hasApprox = isApproxText(combinedText);
-  const approxWeightGrams = hasApprox ? parseApproxWeightGrams(combinedText) : null;
+  // Если вес указан и в названии, и в MinQty, и они расходятся — MinQty главнее
+  // (это поле специально предназначено для количества/веса, название могло устареть)
+  const approxWeightGrams = hasApprox
+    ? (parseApproxWeightGrams(minQty) || parseApproxWeightGrams(rawName))
+    : null;
 
   // Мясные деликатесы, которые продаются целым куском — определяем по названию
   const isWholeItemMeat = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
-  // Пармезан тоже не режем под заказ — продаём целой головкой, но цена в базе
-  // всё равно за 100г (в отличие от хамона, где база — за кг)
-  const isWholeItemParmesan = /пармезан|parmesan|parmigiano/i.test(rawName);
+  // Пармезан и Грана Падано тоже не режем под заказ — продаём целой головкой,
+  // но цена в базе всё равно за 100г (в отличие от хамона, где база — за кг)
+  const isWholeItemParmesan = /пармезан|parmesan|parmigiano|грана\s*падано|grana\s*padano/i.test(rawName);
 
   if ((isWholeItemMeat || isWholeItemParmesan) && hasApprox && approxWeightGrams) {
     priceMode = 'approxPiece';
