@@ -469,7 +469,7 @@
   .send-tg { background: #2AABEE; color: #fff; }
   .send-wa { background: #25D366; color: #fff; }
   .send-max { background: #7C6EF2; color: #fff; }
-  .send-copy { background: var(--light-border); color: var(--dark); grid-column: span 2; }
+  .send-copy { background: var(--light-border); color: var(--dark); }
 
   .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .total-label { font-size: 0.85rem; font-weight: 500; }
@@ -487,20 +487,54 @@
 
   .toast {
     position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--dark); color: var(--gold); padding: 10px 22px; border-radius: 30px;
-    font-size: 0.78rem; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 300; white-space: nowrap;
+    background: var(--dark); color: var(--gold); padding: 10px 20px; border-radius: 18px;
+    font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 300;
+    max-width: min(88vw, 380px);
+    width: max-content;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
 
-  .search-wrap { padding: 12px 16px 0; }
+  .search-wrap { padding: 12px 16px 0; position: relative; }
   .search-input {
     width: 100%; padding: 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
     font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: var(--dark); background: #fff; outline: none;
   }
   .search-input:focus { border-color: var(--gold); }
+
+  .search-suggestions {
+    display: none;
+    position: absolute;
+    left: 16px; right: 16px; top: calc(100% + 2px);
+    background: #fff;
+    border: 1.5px solid var(--light-border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 90;
+  }
+  .search-suggestions.open { display: block; }
+  .suggestion-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    font-size: 0.75rem;
+    color: var(--dark);
+    cursor: pointer;
+    border-bottom: 1px solid var(--light-border);
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:active { background: var(--cream); }
+  .suggestion-name { flex: 1; }
+  .suggestion-cat { font-size: 0.62rem; color: var(--gray); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -520,7 +554,9 @@
 </div>
 
 <div class="search-wrap">
-  <input class="search-input" type="text" placeholder="🔍 Поиск товара..." oninput="filterProducts()" id="searchInput">
+  <input class="search-input" type="text" placeholder="🔍 Поиск товара..." oninput="filterProducts()"
+    onfocus="filterProducts()" onblur="setTimeout(hideSuggestions, 150)" id="searchInput">
+  <div class="search-suggestions" id="searchSuggestions"></div>
 </div>
 
 <div class="categories" id="categories"></div>
@@ -566,6 +602,9 @@
 
       <label class="field-label">Номер телефона</label>
       <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" oninput="renderCart()">
+
+      <label class="field-label">Комментарий к заказу</label>
+      <textarea class="field-textarea" id="commentInput" placeholder="Пожелания, уточнения по заказу (необязательно)" oninput="renderCart()"></textarea>
     </div>
   </div>
 
@@ -613,10 +652,9 @@ const CONFIG = {
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-// ---- Правила заказа на развес: минимум 300г, шаг 50г, подтверждение при >600г (вес не ограничен сверху) ----
+// ---- Правила заказа на развес: минимум 300г, шаг 50г (вес не ограничен сверху) ----
 const MIN_WEIGHT = 300;
 const WEIGHT_STEP = 50;
-const CONFIRM_ABOVE = 600;
 
 function roundToStep(w, step = WEIGHT_STEP) {
   return Math.round(w / step) * step;
@@ -664,10 +702,11 @@ async function resolveWeight(rawWeight, productMinGrams) {
     if (!ok) return null;
     note = `меньше обычного минимума (${productMinGrams}г)`;
   }
-  if (weight > CONFIRM_ABOVE) {
-    const single = await askConfirm(`${weight} г — отрезать одним куском?`);
-    note = note ? note + '; ' + (single ? 'одним куском' : 'разбить на куски') : (single ? 'одним куском' : 'разбить на куски');
-  }
+  // Спрашиваем всегда (не только на больших весах) — менеджеру важно знать,
+  // резать одним куском или можно на части, при любом объёме
+  const single = await askConfirm(`${weight} г — отрезать одним куском или можно на части?`);
+  const pieceNote = single ? 'одним куском' : 'можно на части';
+  note = note ? note + '; ' + pieceNote : pieceNote;
   return { weight, note };
 }
 
@@ -954,7 +993,57 @@ function setCategory(cat) {
   renderProducts();
 }
 
-function filterProducts() { renderProducts(); }
+function filterProducts() {
+  renderProducts();
+  renderSuggestions();
+}
+
+function hideSuggestions() {
+  document.getElementById('searchSuggestions').classList.remove('open');
+}
+
+// Подсказки под строкой поиска: показываем до 8 лучших совпадений по всему
+// каталогу, сортируя по релевантности — сначала совпадения с начала названия,
+// затем по позиции совпадения внутри строки.
+function renderSuggestions() {
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const el = document.getElementById('searchSuggestions');
+
+  if (!search || search.length < 2) {
+    el.classList.remove('open');
+    el.innerHTML = '';
+    return;
+  }
+
+  const matches = products
+    .map(p => ({ p, idx: p.name.toLowerCase().indexOf(search) }))
+    .filter(m => m.idx !== -1)
+    .sort((a, b) => a.idx - b.idx || a.p.name.localeCompare(b.p.name))
+    .slice(0, 8);
+
+  if (!matches.length) {
+    el.classList.remove('open');
+    el.innerHTML = '';
+    return;
+  }
+
+  el.innerHTML = matches.map(({p}) => `
+    <div class="suggestion-item" onmousedown="pickSuggestion(${p.id})">
+      <span class="suggestion-name">${esc(p.name)}</span>
+      <span class="suggestion-cat">${esc(p.cat)}</span>
+    </div>
+  `).join('');
+  el.classList.add('open');
+}
+
+// Клик по подсказке — сразу фильтруем список по полному названию и закрываем дропдаун
+function pickSuggestion(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('searchInput').value = p.name;
+  hideSuggestions();
+  renderProducts();
+}
 
 function esc(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -969,13 +1058,17 @@ function renderProducts() {
     return;
   }
 
-  const cats = activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory];
+  // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
+  // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
+  const cats = search
+    ? [...new Set(products.filter(p => p.name.toLowerCase().includes(search)).map(p => p.cat))]
+    : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
 
   let html = '';
   let found = 0;
 
   for (const cat of cats) {
-    const applySubcat = activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
+    const applySubcat = !search && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const items = products.filter(p => {
       const matchCat = p.cat === cat;
       const matchSearch = !search || p.name.toLowerCase().includes(search);
@@ -1063,7 +1156,8 @@ function renderProducts() {
 async function addWeighted(id) {
   const p = products.find(x=>x.id===id);
   const input = document.getElementById('w'+id);
-  const rawWeight = parseFloat(input.value);
+  // Пустое поле + просто нажатие «+» — добавляем минимальный вес товара
+  const rawWeight = input.value ? parseFloat(input.value) : (p.minWeightGrams || MIN_WEIGHT);
 
   const result = await resolveWeight(rawWeight, p.minWeightGrams);
   if (!result) return;
@@ -1312,6 +1406,13 @@ function buildOrderText() {
   }
 
   lines.push(`Телефон: ${phone || '—'}`);
+
+  const comment = document.getElementById('commentInput').value.trim();
+  if (comment) {
+    lines.push('');
+    lines.push(`Комментарий: ${comment}`);
+  }
+
   lines.push('');
   lines.push(`Итого: ${total}₽`);
 
@@ -1373,11 +1474,25 @@ function sendOrder(channel) {
   }
 }
 
+let toastTimer = null;
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
+
+  // Подгоняем размер шрифта под длину текста, чтобы длинные сообщения
+  // («Добавлено: Пармезан... 750г × 320₽/100г = 2400₽») не обрезались
+  const len = msg.length;
+  let fs = 0.78;
+  if (len > 70) fs = 0.6;
+  else if (len > 50) fs = 0.66;
+  else if (len > 32) fs = 0.72;
+  t.style.fontSize = fs + 'rem';
+
+  const duration = Math.min(4500, 2000 + len * 25);
+
+  clearTimeout(toastTimer);
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 
 initTimeSelect();
