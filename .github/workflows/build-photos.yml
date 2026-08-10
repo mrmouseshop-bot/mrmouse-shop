@@ -19,6 +19,7 @@ import io
 import json
 import os
 import sys
+import time
 
 import requests
 from PIL import Image
@@ -33,25 +34,50 @@ THUMB_SIZE = 72       # пикселей по большей стороне (к�
                        # берём чуть больше для чёткости на retina-экранах)
 JPEG_QUALITY = 60
 
+# Пауза между запросами, чтобы не упираться в лимит запросов NocoDB (429)
+PAGE_DELAY = 0.6
+IMAGE_DELAY = 0.15
+MAX_RETRIES = 6
+
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "photos.js")
+
+
+def request_with_retry(url, **kwargs):
+    """GET с повторными попытками при 429 (слишком много запросов) —
+    ждём дольше с каждой попыткой (экспоненциальная пауза)."""
+    delay = 2
+    for attempt in range(1, MAX_RETRIES + 1):
+        resp = requests.get(url, **kwargs)
+        if resp.status_code == 429:
+            retry_after = resp.headers.get("Retry-After")
+            wait = float(retry_after) if retry_after else delay
+            print(f"  429 от сервера, жду {wait:.0f}с (попытка {attempt}/{MAX_RETRIES})")
+            time.sleep(wait)
+            delay = min(delay * 2, 30)
+            continue
+        resp.raise_for_status()
+        return resp
+    # последняя попытка — пусть падает с понятной ошибкой, если так и не вышло
+    resp.raise_for_status()
+    return resp
 
 
 def fetch_all_records():
     all_records, offset = [], 0
     while True:
-        resp = requests.get(
+        resp = request_with_retry(
             f"{NOCODB_URL}/api/v2/tables/{TABLE_ID}/records",
             headers={"xc-token": TOKEN},
             params={"limit": 200, "offset": offset},
             timeout=30,
         )
-        resp.raise_for_status()
         data = resp.json()
         page = data.get("list", [])
         all_records.extend(page)
         if not page or data.get("pageInfo", {}).get("isLastPage"):
             break
         offset += len(page)
+        time.sleep(PAGE_DELAY)
     return all_records
 
 
@@ -72,8 +98,7 @@ def best_photo_url(photo_field):
 
 
 def make_data_uri(url):
-    resp = requests.get(url, timeout=20)
-    resp.raise_for_status()
+    resp = request_with_retry(url, timeout=20)
     img = Image.open(io.BytesIO(resp.content)).convert("RGB")
     img.thumbnail((THUMB_SIZE, THUMB_SIZE))
     buf = io.BytesIO()
@@ -92,7 +117,7 @@ def main():
 
     cache = {}
     errors = 0
-    for rec in records:
+    for i, rec in enumerate(records):
         rec_id = rec.get("Id")
         if rec_id is None:
             continue
@@ -104,6 +129,9 @@ def main():
         except Exception as e:  # не роняем весь прогон из-за одного битого фото
             errors += 1
             print(f"  пропуск Id={rec_id}: {e}", file=sys.stderr)
+        time.sleep(IMAGE_DELAY)
+        if (i + 1) % 100 == 0:
+            print(f"  обработано {i + 1}/{len(records)}")
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("// Автоматически сгенерировано build_photos.py — не редактировать руками\n")
