@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -186,8 +187,12 @@
     border-radius: 8px;
     background: var(--light-border) center/cover no-repeat;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .prod-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb-placeholder { font-size: 1.3rem; }
 
   .prod-info { flex: 1; min-width: 0; }
 
@@ -336,6 +341,13 @@
     font-weight: 600;
   }
   .qty-num { font-size: 0.8rem; font-weight: 600; min-width: 16px; text-align: center; }
+  .line-total {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--wine);
+    text-align: right;
+    margin-top: 4px;
+  }
 
   .overlay { display: none; position: fixed; inset: 0; background: rgba(28,23,18,0.5); z-index: 200; }
   .overlay.open { display: block; }
@@ -649,10 +661,41 @@ function isAvailable(p) {
   return (p.Availability || "").trim().toLowerCase() !== "нет в наличии";
 }
 
-function photoUrl(p) {
-  const f = p.Photo?.[0];
-  if (!f) return null;
-  return f.signedUrl || f.url || null;
+// При ошибке загрузки фото пробуем следующий вариант из списка (превью → полный
+// размер → оригинальная ссылка), а если ничего не сработало — показываем заглушку
+function handleImgError(img) {
+  const raw = img.dataset.fallbacks || '';
+  const parts = raw ? raw.split(',').filter(Boolean) : [];
+  if (parts.length) {
+    const next = decodeURIComponent(parts.shift());
+    img.dataset.fallbacks = parts.join(',');
+    img.src = next;
+  } else {
+    const holder = img.closest('.prod-thumb');
+    if (holder) holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
+  }
+}
+
+// NocoDB может отдавать не только полноразмерное фото (signedUrl), но и готовые
+// уменьшенные превью (thumbnails.tiny/small/card_cover) — они сильно легче и
+// быстрее грузятся на телефоне. Строим список кандидатов от самого лёгкого к
+// самому надёжному; если один не загрузится (thumbnails не всегда сгенерированы
+// при массовом импорте), <img> на ошибку сам переключится на следующий.
+// Первым в списке — «зашитая» в сам сайт миниатюра из photos.js (см. build_photos.py):
+// она грузится мгновенно, без единого запроса к NocoDB.
+function photoCandidates(rec) {
+  const f = rec.Photo?.[0];
+  const th = f?.thumbnails || {};
+  const baked = window.PHOTO_CACHE?.[String(rec.Id)];
+  const list = [
+    baked,
+    th.tiny?.signedUrl,
+    th.small?.signedUrl,
+    th.card_cover?.signedUrl,
+    f?.signedUrl,
+    f?.url,
+  ].filter(Boolean);
+  return [...new Set(list)];
 }
 
 function countryFlag(country) {
@@ -712,16 +755,26 @@ function mapRecord(rec) {
     pieceWeightGrams = approxWeightGrams;
   }
 
+  // У большинства approx-товаров (сыры) цена в базе — за 100г.
+  // Но хамон/прошутто и подобные мясные деликатесы в прайсе указаны за 1 КГ —
+  // делим на 1000, а не на 100. Если попадутся ещё такие категории, добавьте
+  // сюда ключевое слово.
+  const isPerKg = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
+  const priceBaseGrams = isPerKg ? 1000 : 100;
+
   const unitPrice = priceMode === 'approxPiece'
-    ? Math.round(price * pieceWeightGrams / 100)
+    ? Math.round(price * pieceWeightGrams / priceBaseGrams)
     : price;
+
+  const photoList = photoCandidates(rec);
 
   return {
     id: idCounter++,
     name: rawName || "Без названия",
     cat: cleanCat,
     country: countryFlag(rec.Country),
-    price,          // цена как в базе (за 100г для weight/approxPiece, за шт для flat)
+    price,          // цена как в базе (за 100г/кг для weight/approxPiece, за шт для flat)
+    priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
     unitPrice,       // фактическая цена за 1 шт/1 позицию для approxPiece и flat
     pieceWeightGrams,
     unit: priceMode === 'weight' ? "100г" : "шт",
@@ -730,7 +783,8 @@ function mapRecord(rec) {
     isNew,
     priceMode,
     weighted: priceMode === 'weight', // алиас для обратной совместимости
-    photo: photoUrl(rec),
+    photoList,
+    photo: photoList[0] || null,
   };
 }
 
@@ -840,21 +894,23 @@ function renderProducts() {
               <span class="qty-num">${cartItem.qty}</span>
               <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
             </div>
+            <div class="line-total">${p.unitPrice * cartItem.qty}₽</div>
           `;
         } else {
           actionHtml = `<button class="add-btn" onclick="addFixed(${p.id})">+</button>`;
         }
       }
 
+      const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100г';
       const priceHtml = p.priceMode === 'weight'
         ? `${p.price}₽/${p.unit}`
         : p.priceMode === 'approxPiece'
-          ? `${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/100г)</span>`
+          ? `${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/${priceBaseLabel})</span>`
           : `${p.unitPrice}₽`;
 
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
-          <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" src="${p.photo}" alt="">` : ''}</div>
+          <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
           <div class="prod-info">
             <div class="prod-name">
               ${esc(p.name)}
