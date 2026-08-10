@@ -150,6 +150,32 @@
     color: var(--gold);
   }
 
+  .subcategories {
+    padding: 0 16px 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .subcat-btn {
+    background: transparent;
+    border: 1.5px solid var(--light-border);
+    border-radius: 30px;
+    padding: 4px 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.64rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--gray);
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .subcat-btn.active {
+    background: var(--wine);
+    border-color: var(--wine);
+    color: #fff;
+  }
+
   .products {
     padding: 16px;
     display: flex;
@@ -498,6 +524,7 @@
 </div>
 
 <div class="categories" id="categories"></div>
+<div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
 
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
@@ -697,6 +724,14 @@ function handleImgError(img) {
 // при массовом импорте), <img> на ошибку сам переключится на следующий.
 // Первым в списке — «зашитая» в сам сайт миниатюра из photos.js (см. build_photos.py):
 // она грузится мгновенно, без единого запроса к NocoDB.
+// Полноразмерные фото (часто прямо с камеры телефона, по несколько мегабайт)
+// прогоняем через бесплатный прокси-сервис wsrv.nl — он на лету сжимает и
+// уменьшает картинку под нужный размер, отдавая лёгкую версию.
+function resizedViaProxy(url, size = 80, quality = 55) {
+  if (!url) return null;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${size}&h=${size}&fit=cover&q=${quality}&output=jpg`;
+}
+
 function photoCandidates(rec) {
   const f = rec.Photo?.[0];
   const th = f?.thumbnails || {};
@@ -706,6 +741,8 @@ function photoCandidates(rec) {
     th.tiny?.signedUrl,
     th.small?.signedUrl,
     th.card_cover?.signedUrl,
+    resizedViaProxy(f?.signedUrl),
+    resizedViaProxy(f?.url),
     f?.signedUrl,
     f?.url,
   ].filter(Boolean);
@@ -751,9 +788,11 @@ function mapRecord(rec) {
 
   // Три режима цены:
   // 'weight'      — классический развес, покупатель сам вводит граммы (300г мин, шаг 50г)
-  // 'approxPiece' — штука с приблизительным весом (напр. "~1кг" в MinQty, или "~2.5кг" в названии,
-  //                 как у блоков хамона): цена в базе указана за 100г, итог считаем по весу
-  // 'flat'        — обычный товар или штучный товар с точным весом: цена в базе — за штуку целиком
+  // 'approxPiece' — мясные деликатесы (хамон/прошутто и т.п.) с приблизительным весом
+  //                 куска (напр. "~2.5кг"): продаются целым куском, цена в базе за кг/100г,
+  //                 итог считаем по весу из названия/MinQty
+  // 'flat'        — товар с точным весом упаковки (напр. "1шт (200гр)", без "~") —
+  //                 цена в базе за упаковку целиком, без пересчёта
   let priceMode = 'flat';
   let pieceWeightGrams = null;
 
@@ -762,11 +801,23 @@ function mapRecord(rec) {
   const hasApprox = isApproxText(combinedText);
   const approxWeightGrams = hasApprox ? parseApproxWeightGrams(combinedText) : null;
 
-  if (minQty && !hasPieceWord) {
-    priceMode = 'weight';
-  } else if (hasApprox && approxWeightGrams) {
+  // Мясные деликатесы, которые продаются целым куском — определяем по названию
+  const isWholeItemMeat = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
+  // Пармезан тоже не режем под заказ — продаём целой головкой, но цена в базе
+  // всё равно за 100г (в отличие от хамона, где база — за кг)
+  const isWholeItemParmesan = /пармезан|parmesan|parmigiano/i.test(rawName);
+
+  if ((isWholeItemMeat || isWholeItemParmesan) && hasApprox && approxWeightGrams) {
     priceMode = 'approxPiece';
     pieceWeightGrams = approxWeightGrams;
+  } else if (hasPieceWord && !hasApprox) {
+    // «1шт (200гр)» без тильды — точный вес упаковки, цена целиком, как есть
+    priceMode = 'flat';
+  } else if (minQty || hasApprox) {
+    // «~300гр», «1шт (~300гр)» и т.п. — режем/взвешиваем под заказ, цена за 100г
+    priceMode = 'weight';
+  } else {
+    priceMode = 'flat';
   }
 
   // Для развесных товаров собственный минимум (напр. «от 400г») может быть
@@ -779,9 +830,10 @@ function mapRecord(rec) {
 
   // У большинства approx-товаров (сыры) цена в базе — за 100г.
   // Но хамон/прошутто и подобные мясные деликатесы в прайсе указаны за 1 КГ —
-  // делим на 1000, а не на 100. Если попадутся ещё такие категории, добавьте
+  // делим на 1000, а не на 100. Пармезан — исключение среди «целых кусков»,
+  // у него база остаётся за 100г. Если попадутся ещё такие категории — добавьте
   // сюда ключевое слово.
-  const isPerKg = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
+  const isPerKg = isWholeItemMeat;
   const priceBaseGrams = isPerKg ? 1000 : 100;
 
   const unitPrice = priceMode === 'approxPiece'
@@ -789,11 +841,13 @@ function mapRecord(rec) {
     : price;
 
   const photoList = photoCandidates(rec);
+  const subcat = (rec.Subcategory || "").trim() || null;
 
   return {
     id: idCounter++,
     name: rawName || "Без названия",
     cat: cleanCat,
+    subcat,
     country: countryFlag(rec.Country),
     price,          // цена как в базе (за 100г/кг для weight/approxPiece, за шт для flat)
     priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
@@ -818,12 +872,21 @@ function pickDefaultCategory() {
   return cheeseCat || (CATS[1] || "Все");
 }
 
+function isCheeseCategory(cat) {
+  return /сыр/i.test(cat);
+}
+
+// Порядок подкатегорий сыра — открываем с твёрдых, дальше можно провалиться глубже
+const CHEESE_SUBCAT_ORDER = ["Твёрдые", "Полутвёрдые", "Мягкие", "Десертные"];
+let activeSubcat = null;
+
 async function loadCatalog() {
   // 1) первая страница — сразу отрисовываем, чтобы сайт не «висел» на пустом экране
   const first = await fetchPage(0);
   products = first.page.filter(isAvailable).map(mapRecord);
   CATS = ["Все", ...new Set(products.map(p => p.cat))];
   activeCategory = pickDefaultCategory();
+  if (isCheeseCategory(activeCategory)) activeSubcat = CHEESE_SUBCAT_ORDER[0];
   renderCategories();
   renderProducts();
 
@@ -852,10 +915,37 @@ function renderCategories() {
   el.innerHTML = CATS.map(c => `
     <button class="cat-btn ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${c}</button>
   `).join('');
+  renderSubcategories();
+}
+
+function renderSubcategories() {
+  const el = document.getElementById('subcategories');
+  if (!isCheeseCategory(activeCategory)) {
+    el.innerHTML = '';
+    return;
+  }
+  const available = CHEESE_SUBCAT_ORDER.filter(s => products.some(p => p.cat === activeCategory && p.subcat === s));
+  if (!available.length) {
+    el.innerHTML = '';
+    return;
+  }
+  const tabs = ["Все сыры", ...available];
+  el.innerHTML = tabs.map(s => {
+    const isActive = (s === "Все сыры" && !activeSubcat) || s === activeSubcat;
+    const val = s === "Все сыры" ? "" : s;
+    return `<button class="subcat-btn ${isActive?'active':''}" onclick="setSubcat('${val}')">${s}</button>`;
+  }).join('');
+}
+
+function setSubcat(sub) {
+  activeSubcat = sub || null;
+  renderSubcategories();
+  renderProducts();
 }
 
 function setCategory(cat) {
   activeCategory = cat;
+  activeSubcat = isCheeseCategory(cat) ? CHEESE_SUBCAT_ORDER[0] : null;
   renderCategories();
   renderProducts();
 }
@@ -881,10 +971,12 @@ function renderProducts() {
   let found = 0;
 
   for (const cat of cats) {
+    const applySubcat = activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const items = products.filter(p => {
       const matchCat = p.cat === cat;
       const matchSearch = !search || p.name.toLowerCase().includes(search);
-      return matchCat && matchSearch;
+      const matchSubcat = !applySubcat || p.subcat === activeSubcat;
+      return matchCat && matchSearch && matchSubcat;
     });
     if (!items.length) continue;
     found += items.length;
