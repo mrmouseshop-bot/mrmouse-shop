@@ -1,0 +1,34 @@
+name: Обновить кэш миниатюр
+
+on:
+  schedule:
+    # каждый день в 03:00 по UTC (06:00 по Москве)
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}   # позволяет запустить вручную кнопкой в вкладке Actions
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Установить зависимости
+        run: pip install requests pillow
+
+      - name: Собрать photos.js
+        run: python build_photos.py
+        env:
+          NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+
+      - name: Закоммитить обновлённый файл
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Автообновление кэша миниатюр'
+          file_pattern: photos.js
