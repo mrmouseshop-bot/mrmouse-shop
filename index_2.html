@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mr. Mouse — Элитные сыры и деликатесы</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #F7F3EC;
+    --dark: #1C1712;
+    --wine: #6B2737;
+    --gold: #C9A84C;
+    --gold-light: #E8D5A3;
+    --gray: #8A8279;
+    --light-border: #E0D8CC;
+    --card-bg: #FDFAF5;
+    --shadow: 0 2px 20px rgba(28,23,18,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cream);
+    color: var(--dark);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--dark);
+    padding: 0 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+  .logo span { color: #fff; font-weight: 300; }
+
+  .cart-btn {
+    background: var(--wine);
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    padding: 8px 18px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.03em;
+    transition: background 0.2s;
+  }
+  .cart-btn:hover { background: #852d42; }
+  .cart-count {
+    background: var(--gold);
+    color: var(--dark);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .hero {
+    background: var(--dark);
+    color: #fff;
+    text-align: center;
+    padding: 30px 20px 24px;
+    border-bottom: 1px solid #2a2520;
+  }
+  .hero h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--gold-light);
+    line-height: 1.2;
+  }
+  .hero p {
+    font-size: 0.72rem;
+    color: var(--gray);
+    margin-top: 6px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .categories {
+    padding: 16px 16px 0;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .categories::-webkit-scrollbar { display: none; }
+
+  .cat-btn {
+    background: #fff;
+    border: 1.5px solid var(--light-border);
+    border-radius: 30px;
+    padding: 7px 16px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--gray);
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .cat-btn.active {
+    background: var(--dark);
+    border-color: var(--dark);
+    color: var(--gold);
+  }
+
+  .products {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    font-style: italic;
+    color: var(--dark);
+    padding: 12px 0 4px;
+    border-bottom: 1px solid var(--light-border);
+    margin-bottom: 4px;
+  }
+
+  .product-card {
+    background: var(--card-bg);
+    border: 1px solid var(--light-border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    transition: box-shadow 0.2s;
+  }
+  .product-card:hover { box-shadow: var(--shadow); }
+  .product-card.out-of-stock { opacity: 0.45; }
+
+  .prod-thumb {
+    width: 52px; height: 52px; flex-shrink: 0;
+    border-radius: 8px;
+    background: var(--light-border) center/cover no-repeat;
+    overflow: hidden;
+  }
+  .prod-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .prod-info { flex: 1; min-width: 0; }
+
+  .prod-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+    line-height: 1.3;
+    margin-bottom: 3px;
+  }
+
+  .prod-meta {
+    font-size: 0.65rem;
+    color: var(--gray);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .prod-price {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--wine);
+  }
+
+  .prod-note {
+    font-size: 0.65rem;
+    color: var(--gray);
+    margin-top: 2px;
+  }
+
+  .badge-new {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--dark);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+  }
+
+  .prod-action { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+  .add-btn {
+    background: var(--dark);
+    color: var(--gold);
+    border: none;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .add-btn:hover { background: var(--wine); }
+  .add-btn:disabled { background: #ccc; color: #999; cursor: not-allowed; }
+
+  .weight-input {
+    width: 70px;
+    padding: 5px 8px;
+    border: 1.5px solid var(--light-border);
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.72rem;
+    color: var(--dark);
+    background: #fff;
+    text-align: center;
+    outline: none;
+  }
+  .weight-input:focus { border-color: var(--gold); }
+  .weight-label { font-size: 0.6rem; color: var(--gray); text-align: center; }
+
+  .qty-controls { display: flex; align-items: center; gap: 6px; }
+  .qty-btn {
+    background: var(--light-border);
+    border: none;
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dark);
+    font-weight: 600;
+  }
+  .qty-num { font-size: 0.8rem; font-weight: 600; min-width: 16px; text-align: center; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(28,23,18,0.5); z-index: 200; }
+  .overlay.open { display: block; }
+
+  .cart-drawer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--cream);
+    border-radius: 20px 20px 0 0;
+    z-index: 201;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .cart-drawer.open { transform: translateY(0); }
+
+  .drawer-handle { width: 40px; height: 4px; background: var(--light-border); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+  .drawer-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--light-border); flex-shrink: 0; }
+  .drawer-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 600; }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 12px 20px; }
+
+  .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
+  .cart-item-name { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 600; flex: 1; line-height: 1.3; }
+  .cart-item-detail { font-size: 0.7rem; color: var(--gray); margin-top: 2px; }
+  .cart-item-price { font-size: 0.85rem; font-weight: 600; color: var(--wine); white-space: nowrap; flex-shrink: 0; }
+  .cart-item-remove { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 1rem; padding: 0 2px; }
+
+  .cart-weight-input {
+    width: 80px; padding: 4px 8px; border: 1.5px solid var(--light-border); border-radius: 6px;
+    font-size: 0.72rem; text-align: center; outline: none; font-family: 'Montserrat', sans-serif;
+  }
+  .cart-weight-input:focus { border-color: var(--gold); }
+
+  .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
+  .delivery-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .delivery-label { font-size: 0.75rem; color: var(--gray); }
+  .delivery-input {
+    width: 100px; padding: 5px 8px; border: 1.5px solid var(--light-border); border-radius: 6px;
+    font-size: 0.78rem; text-align: right; font-family: 'Montserrat', sans-serif; outline: none;
+  }
+  .delivery-input:focus { border-color: var(--gold); }
+
+  .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .total-label { font-size: 0.85rem; font-weight: 500; }
+  .total-sum { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; color: var(--wine); }
+
+  .copy-btn {
+    width: 100%; background: var(--dark); color: var(--gold); border: none; border-radius: 12px;
+    padding: 14px; font-family: 'Montserrat', sans-serif; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: background 0.2s;
+  }
+  .copy-btn:hover { background: var(--wine); }
+
+  .empty-cart { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 0.85rem; }
+  .empty-cart .emoji { font-size: 2.5rem; display: block; margin-bottom: 10px; }
+
+  .toast {
+    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--dark); color: var(--gold); padding: 10px 22px; border-radius: 30px;
+    font-size: 0.78rem; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 300; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
+  .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
+
+  .search-wrap { padding: 12px 16px 0; }
+  .search-input {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
+    font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: var(--dark); background: #fff; outline: none;
+  }
+  .search-input:focus { border-color: var(--gold); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Mr.<span>Mouse</span></div>
+  <button class="cart-btn" onclick="toggleCart()">
+    🛒 Корзина
+    <span class="cart-count" id="cartCount">0</span>
+  </button>
+</header>
+
+<div class="hero">
+  <h1>Элитные сыры<br>и деликатесы</h1>
+  <p>Ежедневно 10:00 – 21:00 · +7 980 020-00-95</p>
+</div>
+
+<div class="search-wrap">
+  <input class="search-input" type="text" placeholder="🔍 Поиск товара..." oninput="filterProducts()" id="searchInput">
+</div>
+
+<div class="categories" id="categories"></div>
+<div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
+
+<div class="overlay" id="overlay" onclick="toggleCart()"></div>
+<div class="cart-drawer" id="cartDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header"><h2>Ваш заказ</h2></div>
+  <div class="drawer-body" id="cartBody"></div>
+  <div class="drawer-footer">
+    <div class="delivery-row">
+      <span class="delivery-label">Доставка (₽)</span>
+      <input class="delivery-input" type="number" id="deliveryInput" placeholder="—" oninput="renderCart()">
+    </div>
+    <div class="total-row">
+      <span class="total-label">Итого</span>
+      <span class="total-sum" id="totalSum">0 ₽</span>
+    </div>
+    <button class="copy-btn" onclick="copyOrder()">📋 Скопировать заказ</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== НАСТРОЙКИ ===================== */
+/* TODO: впишите свой READ-ONLY токен перед публикацией —
+   отдельный от того, что использует бот / скрипт импорта. */
+const CONFIG = {
+  NOCODB_URL: "https://app.nocodb.com",
+  NOCODB_TOKEN: "nc_pat_3ggLVlEw8gthOQwhqS6OFvx7YsMSscKBve35f8lD",
+  TABLE_ID: "mzyn24rg2qoo8xs",
+};
+/* ======================================================= */
+
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+let products = [];
+let CATS = ["Все"];
+let activeCategory = "Все";
+let cart = []; // {product, qty, weight}
+
+async function fetchAllRecords() {
+  let all = [], offset = 0;
+  while (true) {
+    const params = new URLSearchParams({ limit: 200, offset });
+    const res = await fetch(`${CONFIG.NOCODB_URL}/api/v2/tables/${CONFIG.TABLE_ID}/records?${params}`, {
+      headers: { "xc-token": CONFIG.NOCODB_TOKEN }
+    });
+    if (!res.ok) throw new Error("NocoDB error " + res.status);
+    const data = await res.json();
+    const page = data.list || [];
+    all = all.concat(page);
+    if (!page.length || data.pageInfo?.isLastPage) break;
+    offset += page.length;
+    if (all.length > 5000) break;
+  }
+  return all;
+}
+
+function isAvailable(p) {
+  return (p.Availability || "").trim().toLowerCase() !== "нет в наличии";
+}
+
+function photoUrl(p) {
+  const f = p.Photo?.[0];
+  if (!f) return null;
+  return f.signedUrl || f.url || null;
+}
+
+function countryFlag(country) {
+  const map = {
+    "Италия": "🇮🇹", "Нидерланды": "🇳🇱", "Испания": "🇪🇸", "Франция": "🇫🇷",
+    "Великобритания": "🇬🇧", "Швейцария": "🇨🇭", "Германия": "🇩🇪", "Россия": "🇷🇺",
+  };
+  if (!country) return "🧀";
+  for (const key in map) if (country.includes(key)) return map[key];
+  return "🧀";
+}
+
+let idCounter = 1;
+function mapRecord(rec) {
+  const rawCat = (rec.Category || "Без категории").trim();
+  const isNew = /new/i.test(rawCat) || /new/i.test(rec.Name || "");
+  const cleanCat = rawCat.replace(/NEW/gi, "").replace(/🔥/g, "").trim() || "Без категории";
+  const minQty = (rec.MinQty || "").trim();
+  const weighted = !!minQty; // если задана мин. партия — товар на развес, цена за 100г
+  return {
+    id: idCounter++,
+    name: rec.Name || "Без названия",
+    cat: cleanCat,
+    country: countryFlag(rec.Country),
+    price: parseFloat(rec.Price) || 0,
+    unit: weighted ? "100г" : "шт",
+    minQty: minQty || null,
+    inStock: isAvailable(rec),
+    isNew,
+    weighted,
+    photo: photoUrl(rec),
+  };
+}
+
+async function loadCatalog() {
+  const raw = await fetchAllRecords();
+  products = raw.filter(isAvailable).map(mapRecord);
+  CATS = ["Все", ...new Set(products.map(p => p.cat))];
+  renderCategories();
+  renderProducts();
+}
+
+function renderCategories() {
+  const el = document.getElementById('categories');
+  el.innerHTML = CATS.map(c => `
+    <button class="cat-btn ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${c}</button>
+  `).join('');
+}
+
+function setCategory(cat) {
+  activeCategory = cat;
+  renderCategories();
+  renderProducts();
+}
+
+function filterProducts() { renderProducts(); }
+
+function esc(s) {
+  return String(s || "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function renderProducts() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const el = document.getElementById('productList');
+
+  if (!products.length) {
+    el.innerHTML = `<div class="loading-state">Загружаем каталог…</div>`;
+    return;
+  }
+
+  const cats = activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory];
+
+  let html = '';
+  let found = 0;
+
+  for (const cat of cats) {
+    const items = products.filter(p => {
+      const matchCat = p.cat === cat;
+      const matchSearch = !search || p.name.toLowerCase().includes(search);
+      return matchCat && matchSearch;
+    });
+    if (!items.length) continue;
+    found += items.length;
+
+    html += `<div class="section-title">${esc(cat)}</div>`;
+    for (const p of items) {
+      const cartItem = cart.find(c=>c.product.id===p.id);
+      const inCart = !!cartItem;
+
+      let actionHtml = '';
+      if (!p.inStock) {
+        actionHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
+      } else if (p.weighted) {
+        actionHtml = `
+          <div>
+            <input class="weight-input" type="number" id="w${p.id}" placeholder="0" min="0" step="50">
+            <div class="weight-label">граммы</div>
+          </div>
+          <button class="add-btn" onclick="addWeighted(${p.id})">+</button>
+        `;
+      } else {
+        if (inCart) {
+          actionHtml = `
+            <div class="qty-controls">
+              <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
+              <span class="qty-num">${cartItem.qty}</span>
+              <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
+            </div>
+          `;
+        } else {
+          actionHtml = `<button class="add-btn" onclick="addFixed(${p.id})">+</button>`;
+        }
+      }
+
+      html += `
+        <div class="product-card ${!p.inStock?'out-of-stock':''}">
+          <div class="prod-thumb">${p.photo ? `<img loading="lazy" src="${p.photo}" alt="">` : ''}</div>
+          <div class="prod-info">
+            <div class="prod-name">
+              ${esc(p.name)}
+              ${p.isNew ? '<span class="badge-new">new</span>' : ''}
+            </div>
+            <div class="prod-meta">${p.country} ${p.minQty ? '· от ' + esc(p.minQty) : ''}</div>
+            <div class="prod-price">${p.weighted ? p.price+'₽/'+p.unit : p.price+'₽'}</div>
+            ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
+          </div>
+          <div class="prod-action">${actionHtml}</div>
+        </div>
+      `;
+    }
+  }
+
+  if (!found) {
+    html = `<div class="no-results">Ничего не найдено 🧀</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function addWeighted(id) {
+  const p = products.find(x=>x.id===id);
+  const input = document.getElementById('w'+id);
+  const weight = parseFloat(input.value);
+  if (!weight || weight <= 0) { showToast('Введите вес в граммах'); return; }
+
+  const existing = cart.find(c=>c.product.id===id);
+  if (existing) {
+    existing.weight = (existing.weight||0) + weight;
+    existing.qty = 1;
+  } else {
+    cart.push({ product: p, qty: 1, weight });
+  }
+  input.value = '';
+  updateCartCount();
+  showToast('Добавлено: ' + p.name.substring(0,25)+'…');
+}
+
+function addFixed(id) {
+  const p = products.find(x=>x.id===id);
+  const existing = cart.find(c=>c.product.id===id);
+  if (existing) { existing.qty++; }
+  else { cart.push({ product: p, qty: 1, weight: null }); }
+  updateCartCount();
+  renderProducts();
+  showToast('Добавлено в заказ');
+}
+
+function changeQty(id, delta) {
+  const idx = cart.findIndex(c=>c.product.id===id);
+  if (idx === -1) return;
+  cart[idx].qty += delta;
+  if (cart[idx].qty <= 0) cart.splice(idx, 1);
+  updateCartCount();
+  renderProducts();
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(c=>c.product.id!==id);
+  updateCartCount();
+  renderCart();
+  renderProducts();
+}
+
+function updateCartCount() {
+  document.getElementById('cartCount').textContent = cart.length;
+}
+
+function toggleCart() {
+  const drawer = document.getElementById('cartDrawer');
+  const overlay = document.getElementById('overlay');
+  const isOpen = drawer.classList.contains('open');
+  drawer.classList.toggle('open', !isOpen);
+  overlay.classList.toggle('open', !isOpen);
+  if (!isOpen) renderCart();
+  if (tg?.BackButton) {
+    if (!isOpen) { tg.BackButton.show(); tg.BackButton.onClick(toggleCart); }
+    else { tg.BackButton.hide(); }
+  }
+}
+
+function renderCart() {
+  const body = document.getElementById('cartBody');
+  const delivery = parseFloat(document.getElementById('deliveryInput').value) || 0;
+
+  if (!cart.length) {
+    body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
+    document.getElementById('totalSum').textContent = '0 ₽';
+    return;
+  }
+
+  let total = delivery;
+  let html = '';
+
+  for (const item of cart) {
+    const p = item.product;
+    let linePrice = null;
+    let detailText = '';
+
+    if (p.weighted) {
+      if (item.weight) {
+        linePrice = Math.round(p.price * item.weight / 100);
+        detailText = item.weight + 'г × ' + p.price + '₽/100г';
+      } else {
+        detailText = '— г × ' + p.price + '₽/100г (уточнить)';
+      }
+    } else {
+      linePrice = p.price * item.qty;
+      detailText = item.qty > 1 ? item.qty + ' шт × ' + p.price + '₽' : p.price + '₽';
+    }
+
+    if (linePrice) total += linePrice;
+
+    html += `
+      <div class="cart-item">
+        <div style="flex:1">
+          <div class="cart-item-name">${esc(p.name)}</div>
+          <div class="cart-item-detail">${esc(detailText)}</div>
+          ${p.weighted ? `
+            <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+              <input class="cart-weight-input" type="number" value="${item.weight||''}" placeholder="0г"
+                onchange="updateWeight(${p.id},this.value)" min="0" step="50">
+              <span style="font-size:0.65rem;color:var(--gray)">г</span>
+            </div>
+          ` : `
+            <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
+              <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
+              <span class="qty-num">${item.qty}</span>
+              <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
+            </div>
+          `}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
+          <span class="cart-item-price">${linePrice ? linePrice+'₽' : '—'}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  body.innerHTML = html;
+  document.getElementById('totalSum').textContent = total + ' ₽';
+}
+
+function updateWeight(id, val) {
+  const item = cart.find(c=>c.product.id===id);
+  if (item) { item.weight = parseFloat(val)||0; }
+  renderCart();
+}
+
+function copyOrder() {
+  if (!cart.length) { showToast('Корзина пуста'); return; }
+  const delivery = parseFloat(document.getElementById('deliveryInput').value) || 0;
+  let lines = ['Ваш заказ:\n'];
+  let total = delivery;
+
+  cart.forEach((item, i) => {
+    const p = item.product;
+    let line = `${i+1}. ${p.name}`;
+    if (p.weighted) {
+      if (item.weight) {
+        const sum = Math.round(p.price * item.weight / 100);
+        line += ` (${item.weight}г) * ${p.price}₽/100гр = ${sum}₽`;
+        total += sum;
+      } else {
+        line += ` (0.) * ${p.price}₽/100гр =`;
+      }
+    } else {
+      if (item.qty > 1) {
+        const sum = p.price * item.qty;
+        line += ` - ${p.price}₽ * ${item.qty} = ${sum}₽`;
+        total += sum;
+      } else {
+        line += ` - ${p.price}₽`;
+        total += p.price;
+      }
+    }
+    lines.push(line);
+  });
+
+  lines.push('');
+  lines.push(`Доставка: ${delivery ? delivery+'₽' : ''}`);
+  lines.push(`Итого: ${total}₽`);
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('✅ Заказ скопирован!');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ Заказ скопирован!');
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+loadCatalog().catch(err => {
+  document.getElementById('productList').innerHTML =
+    `<div class="no-results">Не удалось загрузить каталог<br><small>${esc(err.message)}</small></div>`;
+});
+</script>
+</body>
+</html>
