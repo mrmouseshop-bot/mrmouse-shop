@@ -123,27 +123,25 @@
   .address-note { color: var(--gray); }
 
   .categories {
-    padding: 16px 16px 0;
+    padding: 16px 16px 4px;
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-    overflow-x: auto;
-    scrollbar-width: none;
   }
-  .categories::-webkit-scrollbar { display: none; }
 
   .cat-btn {
     background: #fff;
     border: 1.5px solid var(--light-border);
     border-radius: 30px;
-    padding: 7px 16px;
+    padding: 6px 13px;
     font-family: 'Montserrat', sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
     color: var(--gray);
     transition: all 0.2s;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
   }
   .cat-btn.active {
     background: var(--dark);
@@ -692,20 +690,26 @@ function mapRecord(rec) {
   const minQtyLower = minQty.toLowerCase();
   const price = parseFloat(rec.Price) || 0;
   const hasPieceWord = minQtyLower.includes("шт");
+  const rawName = rec.Name || "";
 
   // Три режима цены:
   // 'weight'      — классический развес, покупатель сам вводит граммы (300г мин, шаг 50г)
-  // 'approxPiece' — штука с приблизительным весом (напр. "~1кг", "около 950г"):
-  //                 цена в базе указана за 100г, итог считаем по весу из MinQty
+  // 'approxPiece' — штука с приблизительным весом (напр. "~1кг" в MinQty, или "~2.5кг" в названии,
+  //                 как у блоков хамона): цена в базе указана за 100г, итог считаем по весу
   // 'flat'        — обычный товар или штучный товар с точным весом: цена в базе — за штуку целиком
   let priceMode = 'flat';
   let pieceWeightGrams = null;
 
+  // Приблизительный вес ищем и в MinQty, и в названии (~2.5кг, ~1.8кг и т.п.)
+  const combinedText = rawName + " " + minQty;
+  const hasApprox = isApproxText(combinedText);
+  const approxWeightGrams = hasApprox ? parseApproxWeightGrams(combinedText) : null;
+
   if (minQty && !hasPieceWord) {
     priceMode = 'weight';
-  } else if (hasPieceWord && isApproxText(minQty)) {
-    const g = parseApproxWeightGrams(minQty);
-    if (g) { priceMode = 'approxPiece'; pieceWeightGrams = g; }
+  } else if (hasApprox && approxWeightGrams) {
+    priceMode = 'approxPiece';
+    pieceWeightGrams = approxWeightGrams;
   }
 
   const unitPrice = priceMode === 'approxPiece'
@@ -714,7 +718,7 @@ function mapRecord(rec) {
 
   return {
     id: idCounter++,
-    name: rec.Name || "Без названия",
+    name: rawName || "Без названия",
     cat: cleanCat,
     country: countryFlag(rec.Country),
     price,          // цена как в базе (за 100г для weight/approxPiece, за шт для flat)
@@ -748,18 +752,22 @@ async function loadCatalog() {
 
   if (first.isLast) return;
 
-  // 2) остальное — в фоне, страница за страницей, с перерисовкой по мере поступления
+  // 2) остальное — тихо в фоне, БЕЗ перерисовки после каждой страницы.
+  // Перерисовка каждой страницы разрушала уже отрисованные <img> и заставляла
+  // телефон заново скачивать уже загруженные фото — из-за этого превью и «зависали»
+  // на середине загрузки. Теперь дорисовываем список только один раз, когда все
+  // страницы получены.
   let offset = first.page.length;
   while (true) {
     const { page, isLast } = await fetchPage(offset);
     if (!page.length) break;
     products = products.concat(page.filter(isAvailable).map(mapRecord));
     offset += page.length;
-    CATS = ["Все", ...new Set(products.map(p => p.cat))];
-    renderCategories();
-    renderProducts();
     if (isLast || offset > 5000) break;
   }
+  CATS = ["Все", ...new Set(products.map(p => p.cat))];
+  renderCategories();
+  renderProducts();
 }
 
 function renderCategories() {
@@ -846,7 +854,7 @@ function renderProducts() {
 
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
-          <div class="prod-thumb">${p.photo ? `<img loading="lazy" src="${p.photo}" alt="">` : ''}</div>
+          <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" src="${p.photo}" alt="">` : ''}</div>
           <div class="prod-info">
             <div class="prod-name">
               ${esc(p.name)}
