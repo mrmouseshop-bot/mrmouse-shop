@@ -28,6 +28,7 @@
     font-family: 'Montserrat', sans-serif;
     font-weight: 300;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
   header {
@@ -450,6 +451,7 @@
   .drawer-body { flex: 1; overflow-y: auto; padding: 12px 20px; }
 
   .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
+  .cart-item > div:first-child { min-width: 0; }
   .cart-item-name { font-family: 'Cormorant Garamond', serif; font-size: 0.95rem; font-weight: 600; flex: 1; line-height: 1.3; }
   .cart-item-detail { font-size: 0.7rem; color: var(--gray); margin-top: 2px; }
   .cart-item-price { font-size: 0.85rem; font-weight: 600; color: var(--wine); white-space: nowrap; flex-shrink: 0; }
@@ -483,13 +485,14 @@
   }
   .piece-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 6px 8px;
     font-size: 0.7rem;
   }
-  .piece-weight-controls { display: flex; align-items: center; gap: 4px; }
-  .piece-price { flex: 1; color: var(--wine); font-weight: 600; white-space: nowrap; }
-  .piece-remove { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 0.85rem; padding: 0 2px; }
+  .piece-weight-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .piece-price { flex: 1 1 100%; min-width: 0; color: var(--wine); font-weight: 600; white-space: normal; word-break: break-word; order: 3; }
+  .piece-remove { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 0.85rem; padding: 0 2px; margin-left: auto; }
 
   .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
   .delivery-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--light-border); }
@@ -511,6 +514,20 @@
 
   .field-label { font-size: 0.68rem; color: var(--gray); margin-bottom: 4px; display: block; }
   .field-note { font-size: 0.62rem; color: var(--gray); line-height: 1.4; margin-top: -6px; margin-bottom: 10px; }
+  .promo-row { display: flex; gap: 6px; align-items: center; }
+  .promo-row .field-input { flex: 1; }
+  .promo-btn {
+    flex-shrink: 0;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .promo-apply { background: var(--wine); color: #fff; }
+  .promo-clear { background: var(--light-border); color: var(--dark); }
   .field-input, .field-textarea, .field-select {
     width: 100%;
     padding: 9px 10px;
@@ -704,6 +721,13 @@
         <textarea class="field-textarea" id="addressInput" placeholder="Введите адрес доставки" oninput="renderCart()"></textarea>
         <div class="field-note">Курьером — только по Москве и МО. Для доставки в другие регионы выберите СДЭК выше.</div>
 
+        <label class="field-label">Когда доставить</label>
+        <div class="delivery-methods" style="margin-bottom:10px;">
+          <button class="method-btn active" id="dateTypeBtn-today" onclick="setDeliveryDateType('today')">Сегодня</button>
+          <button class="method-btn" id="dateTypeBtn-other" onclick="setDeliveryDateType('other')">Другой день</button>
+        </div>
+        <input class="field-input" type="date" id="deliveryDateInput" style="display:none;" oninput="renderCart()">
+
         <div class="field-row">
           <div style="flex:1">
             <label class="field-label">Удобное время</label>
@@ -714,6 +738,7 @@
           <input type="checkbox" id="expressCheck" onchange="onExpressToggle()">
           <label for="expressCheck">Срочная доставка (по предоплате)</label>
         </div>
+        <div class="field-note" id="deliveryCostNote" style="margin-top:6px;"></div>
       </div>
 
       <div id="cdekFields" style="display:none">
@@ -724,7 +749,7 @@
         <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" oninput="renderCart()">
       </div>
 
-      <label class="field-label">Номер телефона</label>
+      <label class="field-label" id="phoneLabel">Номер телефона</label>
       <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" oninput="renderCart()">
 
       <label class="field-label">Комментарий к заказу</label>
@@ -732,8 +757,12 @@
     </div>
 
     <label class="field-label" style="margin-top:16px;">Промокод</label>
-    <input class="field-input" id="promoInput" value="TEST5%" oninput="renderCart()" style="margin-bottom:6px;">
-    <div class="field-note" style="margin:-2px 0 10px;">Скидка не действует на товары с пометкой SALE — там уже сниженная цена</div>
+    <div class="promo-row">
+      <input class="field-input" id="promoInput" value="TEST5%" onkeydown="if(event.key==='Enter'){applyPromo();event.preventDefault();}" style="margin-bottom:0;">
+      <button class="promo-btn promo-apply" onclick="applyPromo()">Применить</button>
+      <button class="promo-btn promo-clear" onclick="clearPromo()">Стереть</button>
+    </div>
+    <div class="field-note" id="promoStatusNote" style="margin:4px 0 10px;"></div>
 
     <div class="discount-row" id="discountRow" style="display:none;"></div>
     <div class="total-row">
@@ -776,9 +805,22 @@ const CONFIG = {
   MAX_LINK: "https://max.ru/u/f9LHodD0cOJk6YYur1bNqQ3qlKVNP5AF9J-a7tFKcjnedwldsVXXbCxz-8Y",
 };
 // Промокоды: код (без учёта регистра) -> процент скидки. Не действует на товары с isSale.
-const PROMO_CODES = {
+// TEST5% зашит всегда как запасной; остальные подтягиваются из полей
+// PromoCode/PromoDiscount в самой таблице товаров (см. registerPromoFromRecord)
+let PROMO_CODES = {
   "TEST5%": 5,
 };
+
+// Если в строке товара заполнены PromoCode и PromoDiscount — регистрируем
+// как действующий промокод (столбцы можно заполнить у любой одной строки,
+// или у нескольких — для нескольких разных кодов сразу)
+function registerPromoFromRecord(rec) {
+  const code = (rec.PromoCode || rec['Промокод'] || '').toString().trim();
+  const discount = parseFloat(rec.PromoDiscount || rec['Скидка%'] || rec['Скидка'] || '');
+  if (code && discount > 0) {
+    PROMO_CODES[code] = discount;
+  }
+}
 /* ======================================================= */
 
 const tg = window.Telegram?.WebApp;
@@ -842,7 +884,7 @@ async function resolveWeight(rawWeight, productMinGrams) {
   }
   // Про нарезку спрашиваем только при заметном весе — маленький кусок
   // (до 600г) в любом случае режется как один кусок, вопрос тут неуместен
-  if (weight > CONFIRM_ABOVE) {
+  if (weight >= CONFIRM_ABOVE) {
     const single = await askConfirm(`${weight} г — как порезать?`, 'Одним куском', 'Разрезать на части');
     const pieceNote = single ? 'одним куском' : 'разрезать на части';
     note = note ? note + '; ' + pieceNote : pieceNote;
@@ -864,7 +906,7 @@ let products = [];
 // Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
 // ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
 // эти разделы по мере загрузки.
-const STATIC_CATS = ["Все", "🔥 Акции", "Подарочный бокс", "Доп.", "Сыры", "Хамон/Нарезки", "ФуэтКолбасы", "Фуа Гра", "Бакалея"];
+const STATIC_CATS = ["Все", "🔥 Акции", "Подарочный бокс", "Доп.", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея"];
 let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
@@ -965,6 +1007,7 @@ function isApproxText(text) {
 
 let idCounter = 1;
 function mapRecord(rec) {
+  registerPromoFromRecord(rec);
   const rawCat = (rec.Category || "Без категории").trim();
   // Новое поле New (Checkbox) — приоритетный источник; пока не все товары
   // мигрированы, оставляем старую проверку по тексту как запасной вариант
@@ -1146,7 +1189,7 @@ async function loadCatalog() {
 function renderCategories() {
   const el = document.getElementById('categories');
   el.innerHTML = CATS.map(c => `
-    <button class="cat-btn ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${c}</button>
+    <button class="cat-btn ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
   `).join('');
   renderSubcategories();
 }
@@ -1481,8 +1524,37 @@ function cartItemLinePrice(item) {
 
 // Считает подытог, скидку по промокоду (не действует на товары с isSale) и итог.
 // Используется и в корзине, и при формировании текста заказа — чтобы суммы не расходились.
+let appliedPromoCode = 'TEST5%'; // предзаполненный по умолчанию, как и раньше
+
+function applyPromo() {
+  const raw = document.getElementById('promoInput').value.trim();
+  appliedPromoCode = raw;
+  let found = false;
+  for (const code in PROMO_CODES) {
+    if (code.toLowerCase() === raw.toLowerCase()) { found = true; break; }
+  }
+  const note = document.getElementById('promoStatusNote');
+  if (!raw) {
+    note.textContent = '';
+  } else if (found) {
+    note.textContent = '✅ Промокод применён';
+    note.style.color = 'var(--wine)';
+  } else {
+    note.textContent = 'Такой промокод не найден';
+    note.style.color = '#c0392b';
+  }
+  renderCart();
+}
+
+function clearPromo() {
+  document.getElementById('promoInput').value = '';
+  appliedPromoCode = '';
+  document.getElementById('promoStatusNote').textContent = '';
+  renderCart();
+}
+
 function computeCartTotals() {
-  const promoRaw = (document.getElementById('promoInput')?.value || '').trim();
+  const promoRaw = appliedPromoCode;
   let percent = 0;
   for (const code in PROMO_CODES) {
     if (code.toLowerCase() === promoRaw.toLowerCase()) { percent = PROMO_CODES[code]; break; }
@@ -1497,8 +1569,9 @@ function computeCartTotals() {
   });
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
-  const total = subtotal - discount;
-  return { subtotal, discount, total, percent, promoRaw };
+  const delivery = computeDeliveryCost();
+  const total = subtotal - discount + delivery.cost;
+  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryNote: delivery.note };
 }
 
 function renderCart() {
@@ -1598,7 +1671,7 @@ function renderCart() {
 
   body.innerHTML = html;
 
-  const { subtotal, discount, total: finalTotal, percent } = computeCartTotals();
+  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryNote } = computeCartTotals();
   const discountRow = document.getElementById('discountRow');
   if (discount > 0) {
     discountRow.style.display = 'flex';
@@ -1606,6 +1679,10 @@ function renderCart() {
   } else {
     discountRow.style.display = 'none';
   }
+
+  const deliveryCostNote = document.getElementById('deliveryCostNote');
+  if (deliveryCostNote) deliveryCostNote.textContent = deliveryMethod === 'courier' ? deliveryNote : '';
+
   document.getElementById('totalSum').textContent = finalTotal + ' ₽';
   document.getElementById('totalSumTop').textContent = finalTotal + ' ₽';
 }
@@ -1633,6 +1710,9 @@ function setDeliveryMethod(method) {
   } else {
     addressInput.placeholder = 'Введите адрес доставки';
   }
+  document.getElementById('phoneLabel').textContent = method === 'pickup'
+    ? 'Номер телефона (необязательно)'
+    : 'Номер телефона';
   renderCart();
 }
 
@@ -1655,6 +1735,32 @@ function onExpressToggle() {
   const checked = document.getElementById('expressCheck').checked;
   document.getElementById('timeSelect').disabled = checked;
   renderCart();
+}
+
+// ---- День доставки: сегодня / другой день ----
+let deliveryDateType = 'today';
+
+function setDeliveryDateType(type) {
+  deliveryDateType = type;
+  document.getElementById('dateTypeBtn-today').classList.toggle('active', type === 'today');
+  document.getElementById('dateTypeBtn-other').classList.toggle('active', type === 'other');
+  document.getElementById('deliveryDateInput').style.display = type === 'other' ? 'block' : 'none';
+  renderCart();
+}
+
+// Стоимость доставки (курьером): срочная — фикс. ~799₽, день в день — 650₽,
+// на отложенную дату — 550₽. Везде с припиской про пересчёт. Для самовывоза/СДЭК
+// доставки нет — 0.
+function computeDeliveryCost() {
+  if (deliveryMethod !== 'courier') return { cost: 0, note: '' };
+  const express = document.getElementById('expressCheck')?.checked;
+  if (express) {
+    return { cost: 799, note: 'Срочная доставка ~799₽ (произведём перерасчёт после согласования и оформления доставки)' };
+  }
+  if (deliveryDateType === 'today') {
+    return { cost: 650, note: 'Доставка день в день — 650₽ (произведём перерасчёт после оформления доставки)' };
+  }
+  return { cost: 550, note: 'Доставка на выбранную дату — 550₽ (произведём перерасчёт после оформления доставки)' };
 }
 
 // Собирает текст заказа: состав + способ получения + контакты
@@ -1702,10 +1808,17 @@ function buildOrderText() {
   if (deliveryMethod === 'courier') {
     const address = document.getElementById('addressInput').value.trim();
     const time = document.getElementById('timeSelect').value;
+    const date = document.getElementById('deliveryDateInput').value;
     lines.push('Способ получения: курьером');
     lines.push(`Адрес: ${address || '—'}`);
-    if (express) lines.push('Срочная доставка (по предоплате)');
-    else lines.push(`Время: ${time || '—'}`);
+    if (express) {
+      lines.push('Срочная доставка (по предоплате)');
+    } else {
+      lines.push(deliveryDateType === 'today' ? 'День доставки: сегодня' : `День доставки: ${date || '—'}`);
+      lines.push(`Время: ${time || '—'}`);
+    }
+    const { deliveryNote } = computeCartTotals();
+    if (deliveryNote) lines.push(deliveryNote);
   } else if (deliveryMethod === 'pickup') {
     lines.push('Способ получения: самовывоз (Марьино, ул. Донецкая, д 19)');
   } else if (deliveryMethod === 'cdek') {
@@ -1725,10 +1838,13 @@ function buildOrderText() {
   }
 
   lines.push('');
-  const { subtotal, discount, total, percent, promoRaw } = computeCartTotals();
+  const { subtotal, discount, total, percent, promoRaw, deliveryCost } = computeCartTotals();
   lines.push(`Подытог: ${subtotal}₽`);
   if (discount > 0) {
     lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
+  }
+  if (deliveryCost > 0) {
+    lines.push(`Доставка: ${deliveryCost}₽ (ориентировочно)`);
   }
   lines.push(`Итого: ${total}₽`);
 
@@ -1738,13 +1854,18 @@ function buildOrderText() {
 function validateOrderFields() {
   if (!cart.length) { showToast('Корзина пуста'); return false; }
   const phone = document.getElementById('phoneInput').value.trim();
-  if (!phone) { showToast('Укажите номер телефона'); return false; }
+  // Для самовывоза телефон не обязателен (но поле остаётся доступным для заполнения)
+  if (!phone && deliveryMethod !== 'pickup') { showToast('Укажите номер телефона'); return false; }
   if (deliveryMethod === 'courier') {
     const address = document.getElementById('addressInput').value.trim();
     if (!address) { showToast('Укажите адрес доставки'); return false; }
     const express = document.getElementById('expressCheck').checked;
     const time = document.getElementById('timeSelect').value;
     if (!express && !time) { showToast('Выберите время доставки или отметьте «срочно»'); return false; }
+    if (!express && deliveryDateType === 'other' && !document.getElementById('deliveryDateInput').value) {
+      showToast('Укажите дату доставки');
+      return false;
+    }
   } else if (deliveryMethod === 'cdek') {
     const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
