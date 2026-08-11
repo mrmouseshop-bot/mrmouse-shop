@@ -422,8 +422,31 @@
   .cart-drawer.open { transform: translateY(0); }
 
   .drawer-handle { width: 40px; height: 4px; background: var(--light-border); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
-  .drawer-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--light-border); flex-shrink: 0; }
-  .drawer-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 600; }
+  .drawer-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--light-border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .drawer-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 600; flex: 1; }
+  .drawer-header-total { font-size: 1rem; font-weight: 600; color: var(--wine); white-space: nowrap; }
+  .drawer-close {
+    background: var(--light-border);
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 0.9rem;
+    color: var(--dark);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    order: -1;
+  }
   .drawer-body { flex: 1; overflow-y: auto; padding: 12px 20px; }
 
   .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
@@ -575,10 +598,28 @@
 
   .search-wrap { padding: 12px 16px 0; position: relative; }
   .search-input {
-    width: 100%; padding: 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
+    width: 100%; padding: 10px 62px 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
     font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: var(--dark); background: #fff; outline: none;
   }
   .search-input:focus { border-color: var(--gold); }
+
+  .search-icons { position: absolute; right: 26px; top: 12px; display: flex; align-items: center; gap: 4px; height: 34px; }
+  .search-clear-btn, .search-go-btn {
+    background: none;
+    border: none;
+    color: var(--gray);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    font-size: 0.9rem;
+    border-radius: 50%;
+  }
+  .search-clear-btn:active, .search-go-btn:active { background: var(--light-border); }
+  .search-clear-btn { display: none; }
+  .search-clear-btn.show { display: flex; }
 
   .search-suggestions {
     display: none;
@@ -627,8 +668,12 @@
 </div>
 
 <div class="search-wrap">
-  <input class="search-input" type="text" placeholder="🔍 Поиск товара..." oninput="filterProducts()"
-    onfocus="filterProducts()" onblur="setTimeout(hideSuggestions, 150)" id="searchInput">
+  <input class="search-input" type="text" placeholder="Поиск товара..." oninput="filterProducts()"
+    onfocus="filterProducts()" id="searchInput">
+  <div class="search-icons">
+    <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" aria-label="Очистить">✕</button>
+    <button class="search-go-btn" onclick="filterProducts()" aria-label="Искать">🔍</button>
+  </div>
   <div class="search-suggestions" id="searchSuggestions"></div>
 </div>
 
@@ -639,7 +684,11 @@
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
 <div class="cart-drawer" id="cartDrawer">
   <div class="drawer-handle"></div>
-  <div class="drawer-header"><h2>Ваш заказ</h2></div>
+  <div class="drawer-header">
+    <button class="drawer-close" onclick="toggleCart()" aria-label="Закрыть">✕</button>
+    <h2>Ваш заказ</h2>
+    <span class="drawer-header-total" id="totalSumTop">0 ₽</span>
+  </div>
   <div class="drawer-body">
     <div id="cartBody"></div>
 
@@ -679,12 +728,10 @@
       <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" oninput="renderCart()">
 
       <label class="field-label">Комментарий к заказу</label>
-      <textarea class="field-textarea" id="commentInput" placeholder="Пожелания, уточнения по заказу (необязательно)" oninput="renderCart()"></textarea>
+      <textarea class="field-textarea" id="commentInput" placeholder="Необязательно. Например: нестандартная просьба по нарезке — кусочки поменьше и т.п. Менеджеры часто идут навстречу!" oninput="renderCart()"></textarea>
     </div>
-  </div>
 
-  <div class="drawer-footer">
-    <label class="field-label">Промокод</label>
+    <label class="field-label" style="margin-top:16px;">Промокод</label>
     <input class="field-input" id="promoInput" value="TEST5%" oninput="renderCart()" style="margin-bottom:6px;">
     <div class="field-note" style="margin:-2px 0 10px;">Скидка не действует на товары с пометкой SALE — там уже сниженная цена</div>
 
@@ -1135,6 +1182,14 @@ function setCategory(cat) {
 function filterProducts() {
   renderProducts();
   renderSuggestions();
+  document.getElementById('searchClearBtn').classList.toggle('show', !!document.getElementById('searchInput').value);
+}
+
+function clearSearch() {
+  const input = document.getElementById('searchInput');
+  input.value = '';
+  input.focus();
+  filterProducts();
 }
 
 function hideSuggestions() {
@@ -1167,7 +1222,7 @@ function renderSuggestions() {
   }
 
   el.innerHTML = matches.map(({p}) => `
-    <div class="suggestion-item" onmousedown="pickSuggestion(${p.id})">
+    <div class="suggestion-item" onclick="pickSuggestion(${p.id})">
       <span class="suggestion-name">${esc(p.name)}</span>
       <span class="suggestion-cat">${esc(p.cat)}</span>
     </div>
@@ -1180,6 +1235,7 @@ function pickSuggestion(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
   document.getElementById('searchInput').value = p.name;
+  document.getElementById('searchClearBtn').classList.add('show');
   hideSuggestions();
   renderProducts();
 }
@@ -1451,6 +1507,7 @@ function renderCart() {
   if (!cart.length) {
     body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
     document.getElementById('totalSum').textContent = '0 ₽';
+    document.getElementById('totalSumTop').textContent = '0 ₽';
     return;
   }
 
@@ -1550,6 +1607,7 @@ function renderCart() {
     discountRow.style.display = 'none';
   }
   document.getElementById('totalSum').textContent = finalTotal + ' ₽';
+  document.getElementById('totalSumTop').textContent = finalTotal + ' ₽';
 }
 
 // ---- Способ доставки ----
@@ -1620,6 +1678,12 @@ function buildOrderText() {
       const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
       if (notes.length) line += ` [${notes.join('; ')}]`;
       lines.push(line);
+      // Если кусков несколько — отдельной строкой расписываем, как именно
+      // покупатель их разбил (менеджер иначе видит только суммарный вес)
+      if (pieces.length > 1) {
+        const breakdown = pieces.map(pc => `${pc.weight}г` + (pc.note ? ` (${pc.note})` : '')).join(', ');
+        lines.push(`    Куски: ${breakdown}`);
+      }
       lineNum++;
     } else {
       const sum = p.unitPrice * item.qty;
