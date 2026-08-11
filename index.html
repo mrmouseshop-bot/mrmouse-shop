@@ -801,9 +801,13 @@
             <select class="field-select" id="timeSelect" onchange="renderCart()"></select>
           </div>
         </div>
-        <div class="express-row">
+        <div class="express-row" id="expressRow">
           <input type="checkbox" id="expressCheck" onchange="onExpressToggle()">
           <label for="expressCheck">Срочная доставка (по предоплате)</label>
+        </div>
+        <div class="express-row">
+          <input type="checkbox" id="cashCheck" onchange="renderCart()">
+          <label for="cashCheck">Хочу оплатить наличными</label>
         </div>
         <div class="field-note" id="deliveryCostNote" style="margin-top:6px;"></div>
       </div>
@@ -1874,10 +1878,12 @@ function setDeliveryMethod(method) {
   const addressInput = document.getElementById('addressInput');
   const timeSelect = document.getElementById('timeSelect');
   const expressCheck = document.getElementById('expressCheck');
+  const cashCheck = document.getElementById('cashCheck');
   const isCourier = method === 'courier';
   addressInput.disabled = !isCourier;
   timeSelect.disabled = !isCourier;
   expressCheck.disabled = !isCourier;
+  cashCheck.disabled = expressCheck.checked;
   if (method === 'pickup') {
     addressInput.placeholder = 'Самовывоз: Марьино, ул. Донецкая, д 19';
   } else {
@@ -1907,6 +1913,10 @@ function initTimeSelect() {
 function onExpressToggle() {
   const checked = document.getElementById('expressCheck').checked;
   document.getElementById('timeSelect').disabled = checked;
+  // Оплата наличными несовместима со срочной доставкой (она по предоплате)
+  const cashCheck = document.getElementById('cashCheck');
+  cashCheck.disabled = checked;
+  if (checked) cashCheck.checked = false;
   renderCart();
 }
 
@@ -1918,6 +1928,20 @@ function setDeliveryDateType(type) {
   document.getElementById('dateTypeBtn-today').classList.toggle('active', type === 'today');
   document.getElementById('dateTypeBtn-other').classList.toggle('active', type === 'other');
   document.getElementById('dateFieldWrap').style.display = type === 'other' ? 'block' : 'none';
+
+  // «Срочная доставка» имеет смысл только для «сегодня» — на отложенную дату
+  // это противоречие, поэтому для «Другой день» галочку скрываем и сбрасываем
+  const expressRow = document.getElementById('expressRow');
+  const expressCheck = document.getElementById('expressCheck');
+  if (type === 'other') {
+    expressRow.style.display = 'none';
+    if (expressCheck.checked) {
+      expressCheck.checked = false;
+      onExpressToggle();
+    }
+  } else {
+    expressRow.style.display = 'flex';
+  }
   renderCart();
 }
 
@@ -1983,6 +2007,7 @@ function buildOrderText() {
 
   const phone = document.getElementById('phoneInput').value.trim();
   const express = document.getElementById('expressCheck').checked;
+  const cash = document.getElementById('cashCheck').checked;
 
   if (deliveryMethod === 'courier') {
     const address = document.getElementById('addressInput').value.trim();
@@ -1995,17 +2020,20 @@ function buildOrderText() {
     } else {
       lines.push(deliveryDateType === 'today' ? 'День доставки: сегодня' : `День доставки: ${date || '—'}`);
       lines.push(`Время: ${time || '—'}`);
+      if (cash) lines.push('Оплата: наличными');
     }
     const { deliveryNote } = computeCartTotals();
     if (deliveryNote) lines.push(deliveryNote);
   } else if (deliveryMethod === 'pickup') {
     lines.push('Способ получения: самовывоз (Марьино, ул. Донецкая, д 19)');
+    if (cash) lines.push('Оплата: наличными');
   } else if (deliveryMethod === 'cdek') {
     const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
     lines.push('Способ получения: СДЭК');
     lines.push(`Город: ${city || '—'}`);
     lines.push(`Пункт выдачи/адрес: ${cdekAddress || '—'}`);
+    if (cash) lines.push('Оплата: наличными');
   }
 
   lines.push(`Телефон: ${phone || '—'}`);
