@@ -150,6 +150,16 @@
     border-color: var(--dark);
     color: var(--gold);
   }
+  .cat-btn-special {
+    border-color: #e67e22;
+    color: #c0392b;
+    font-weight: 600;
+  }
+  .cat-btn-special.active {
+    background: #c0392b;
+    border-color: #c0392b;
+    color: #fff;
+  }
 
   .subcategories {
     padding: 0 16px 8px;
@@ -1011,7 +1021,7 @@ let products = [];
 // Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
 // ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
 // эти разделы по мере загрузки.
-const STATIC_CATS = ["Все", "🔥 Акции", "⏰ УСПЕЙТЕ!", "Подарочный бокс", "Доп.", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея"];
+const STATIC_CATS = ["Все", "🔥 Акции", "⏰ УСПЕЙТЕ!", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея", "Подарочный бокс", "Доп."];
 let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
@@ -1345,8 +1355,9 @@ async function loadCatalog() {
 
 function renderCategories() {
   const el = document.getElementById('categories');
+  const isSpecial = c => c === "🔥 Акции" || c === "⏰ УСПЕЙТЕ!";
   el.innerHTML = CATS.map(c => `
-    <button class="cat-btn ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
+    <button class="cat-btn ${isSpecial(c) ? 'cat-btn-special' : ''} ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
   `).join('');
   renderSubcategories();
 }
