@@ -264,6 +264,31 @@
     vertical-align: middle;
     text-transform: uppercase;
   }
+  .badge-sale {
+    display: inline-block;
+    background: var(--wine);
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+  }
+  .badge-notcut {
+    display: inline-block;
+    background: #c0392b;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
 
   .prod-action { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
@@ -272,13 +297,16 @@
     color: var(--gold);
     border: none;
     border-radius: 8px;
-    width: 34px;
-    height: 34px;
-    font-size: 1.3rem;
+    padding: 9px 12px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    letter-spacing: 0.02em;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
     transition: background 0.2s;
     flex-shrink: 0;
   }
@@ -410,6 +438,36 @@
   }
   .cart-weight-input:focus { border-color: var(--gold); }
 
+  .pieces-toggle {
+    margin-top: 6px;
+    background: none;
+    border: none;
+    color: var(--wine);
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 0;
+    font-family: 'Montserrat', sans-serif;
+  }
+  .pieces-list {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .piece-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+  }
+  .piece-weight-controls { display: flex; align-items: center; gap: 4px; }
+  .piece-price { flex: 1; color: var(--wine); font-weight: 600; white-space: nowrap; }
+  .piece-remove { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 0.85rem; padding: 0 2px; }
+
   .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
   .delivery-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--light-border); }
   .delivery-methods { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -429,6 +487,7 @@
   .method-btn.active { background: var(--dark); border-color: var(--dark); color: var(--gold); }
 
   .field-label { font-size: 0.68rem; color: var(--gray); margin-bottom: 4px; display: block; }
+  .field-note { font-size: 0.62rem; color: var(--gray); line-height: 1.4; margin-top: -6px; margin-bottom: 10px; }
   .field-input, .field-textarea, .field-select {
     width: 100%;
     padding: 9px 10px;
@@ -485,6 +544,7 @@
   }
 
   .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .discount-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--wine); margin-bottom: 6px; }
   .total-label { font-size: 0.85rem; font-weight: 500; }
   .total-sum { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; color: var(--wine); }
 
@@ -500,13 +560,13 @@
 
   .toast {
     position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--dark); color: var(--gold); padding: 10px 20px; border-radius: 18px;
+    background: var(--dark); color: var(--gold); padding: 12px 22px; border-radius: 18px;
     font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 300;
-    max-width: min(88vw, 380px);
+    max-width: min(92vw, 440px);
     width: max-content;
     white-space: normal;
     text-align: center;
-    line-height: 1.35;
+    line-height: 1.4;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -593,6 +653,7 @@
       <div id="courierFields">
         <label class="field-label">Адрес доставки</label>
         <textarea class="field-textarea" id="addressInput" placeholder="Введите адрес доставки" oninput="renderCart()"></textarea>
+        <div class="field-note">Курьером — только по Москве и МО. Для доставки в другие регионы выберите СДЭК выше.</div>
 
         <div class="field-row">
           <div style="flex:1">
@@ -623,10 +684,16 @@
   </div>
 
   <div class="drawer-footer">
+    <label class="field-label">Промокод</label>
+    <input class="field-input" id="promoInput" value="TEST5%" oninput="renderCart()" style="margin-bottom:6px;">
+    <div class="field-note" style="margin:-2px 0 10px;">Скидка не действует на товары с пометкой SALE — там уже сниженная цена</div>
+
+    <div class="discount-row" id="discountRow" style="display:none;"></div>
     <div class="total-row">
       <span class="total-label">Итого</span>
       <span class="total-sum" id="totalSum">0 ₽</span>
     </div>
+    <div class="field-note" style="margin-top:-10px;margin-bottom:12px;">Итоговая стоимость может быть уточнена после нарезки и взвешивания весовых позиций</div>
 
     <div class="send-buttons">
       <button class="send-btn send-tg" onclick="sendOrder('telegram')">✈️ Telegram</button>
@@ -661,6 +728,10 @@ const CONFIG = {
   WHATSAPP_PHONE: "79800200095",
   MAX_LINK: "https://max.ru/u/f9LHodD0cOJk6YYur1bNqQ3qlKVNP5AF9J-a7tFKcjnedwldsVXXbCxz-8Y",
 };
+// Промокоды: код (без учёта регистра) -> процент скидки. Не действует на товары с isSale.
+const PROMO_CODES = {
+  "TEST5%": 5,
+};
 /* ======================================================= */
 
 const tg = window.Telegram?.WebApp;
@@ -669,6 +740,7 @@ if (tg) { tg.ready(); tg.expand(); }
 // ---- Правила заказа на развес: минимум 300г, шаг 50г (вес не ограничен сверху) ----
 const MIN_WEIGHT = 300;
 const WEIGHT_STEP = 50;
+const CONFIRM_ABOVE = 600; // выше этого веса спрашиваем "одним куском или на части"
 
 function roundToStep(w, step = WEIGHT_STEP) {
   return Math.round(w / step) * step;
@@ -676,13 +748,15 @@ function roundToStep(w, step = WEIGHT_STEP) {
 
 // Свой модальный confirm — не зависит от tg.showConfirm
 // (в некоторых клиентах Telegram showConfirm не отрабатывал и «вешал» добавление в корзину)
-function askConfirm(message) {
+function askConfirm(message, yesLabel = 'Да', noLabel = 'Нет') {
   return new Promise(resolve => {
     const modal = document.getElementById('confirmModal');
     document.getElementById('confirmText').textContent = message;
-    modal.classList.add('open');
     const yesBtn = document.getElementById('confirmYes');
     const noBtn = document.getElementById('confirmNo');
+    yesBtn.textContent = yesLabel;
+    noBtn.textContent = noLabel;
+    modal.classList.add('open');
     function cleanup(result) {
       modal.classList.remove('open');
       yesBtn.onclick = null;
@@ -712,15 +786,20 @@ async function resolveWeight(rawWeight, productMinGrams) {
   }
   let note = '';
   if (productMinGrams && productMinGrams > MIN_WEIGHT && weight < productMinGrams) {
-    const ok = await askConfirm(`Обычно минимум для этого товара — ${productMinGrams} г, но можем поискать и ${weight} г 🙂 Добавить?`);
+    const ok = await askConfirm(
+      `Обычно минимум для этого товара — ${productMinGrams} г, но можем поискать и ${weight} г 🙂`,
+      'Добавить', 'Отмена'
+    );
     if (!ok) return null;
     note = `меньше обычного минимума (${productMinGrams}г)`;
   }
-  // Спрашиваем всегда (не только на больших весах) — менеджеру важно знать,
-  // резать одним куском или можно на части, при любом объёме
-  const single = await askConfirm(`${weight} г — отрезать одним куском или можно на части?`);
-  const pieceNote = single ? 'одним куском' : 'можно на части';
-  note = note ? note + '; ' + pieceNote : pieceNote;
+  // Про нарезку спрашиваем только при заметном весе — маленький кусок
+  // (до 600г) в любом случае режется как один кусок, вопрос тут неуместен
+  if (weight > CONFIRM_ABOVE) {
+    const single = await askConfirm(`${weight} г — как порезать?`, 'Одним куском', 'Разрезать на части');
+    const pieceNote = single ? 'одним куском' : 'разрезать на части';
+    note = note ? note + '; ' + pieceNote : pieceNote;
+  }
   return { weight, note };
 }
 
@@ -735,7 +814,11 @@ function stepProductWeight(id, delta) {
 }
 
 let products = [];
-let CATS = ["Все"];
+// Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
+// ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
+// эти разделы по мере загрузки.
+const STATIC_CATS = ["Все", "🔥 Акции", "Подарочный бокс", "Доп.", "Сыры", "Хамон/Нарезки", "ФуэтКолбасы", "Фуа Гра", "Бакалея"];
+let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
 
@@ -752,6 +835,9 @@ async function fetchPage(offset, limit = 200) {
 }
 
 function isAvailable(p) {
+  // Поддерживаем и Checkbox (true/false), и старый текст/Single select —
+  // работает с любым из вариантов
+  if (typeof p.Availability === "boolean") return p.Availability;
   return (p.Availability || "").trim().toLowerCase() !== "нет в наличии";
 }
 
@@ -818,7 +904,9 @@ function parseApproxWeightGrams(text) {
   const t = text.toLowerCase();
   const kgMatch = t.match(/(\d+(?:[.,]\d+)?)\s*кг/);
   if (kgMatch) return Math.round(parseFloat(kgMatch[1].replace(',', '.')) * 1000);
-  const gMatch = t.match(/(\d+(?:[.,]\d+)?)\s*г(?:р)?\b/);
+  // \b тут намеренно убран — с кириллицей граница слова в JS-регулярках
+  // не работает и молча ломает совпадение (та же история, что была с "шт"/"уп")
+  const gMatch = t.match(/(\d+(?:[.,]\d+)?)\s*г(?:р)?/);
   if (gMatch) return Math.round(parseFloat(gMatch[1].replace(',', '.')));
   return null;
 }
@@ -831,46 +919,74 @@ function isApproxText(text) {
 let idCounter = 1;
 function mapRecord(rec) {
   const rawCat = (rec.Category || "Без категории").trim();
-  const isNew = /new/i.test(rawCat) || /new/i.test(rec.Name || "");
+  // Новое поле New (Checkbox) — приоритетный источник; пока не все товары
+  // мигрированы, оставляем старую проверку по тексту как запасной вариант
+  // Поле-чекбокс "новинка" может называться по-разному (New, NEW🔥, Новинка...) —
+  // проверяем несколько вероятных вариантов имени, чтобы не зависеть от точного
+  // написания в NocoDB
+  const isNew = !!rec.New || !!rec['NEW🔥'] || !!rec['New🔥'] || !!rec.Новинка
+    || /new/i.test(rawCat) || /new/i.test(rec.Name || "") || /new/i.test(rec.Availability || "");
+  const isLowStock = !!rec.LowStock || !!rec['Мало'] || !!rec.Low_stock;
   const cleanCat = rawCat.replace(/NEW/gi, "").replace(/🔥/g, "").trim() || "Без категории";
-  const minQty = (rec.MinQty || "").trim();
-  const minQtyLower = minQty.toLowerCase();
-  const price = parseFloat(rec.Price) || 0;
-  const hasPieceWord = minQtyLower.includes("шт");
   const rawName = rec.Name || "";
+  const price = parseFloat(rec.Price) || 0;
+
+  // MinQty теперь числовое поле (граммы) — но пока не вся таблица переведена,
+  // старые записи могут ещё хранить там текст ("от 1шт (~300гр)" и т.п.)
+  const minQtyNum = typeof rec.MinQty === 'number' ? rec.MinQty : (parseFloat(rec.MinQty) || null);
+  const minQtyText = typeof rec.MinQty === 'string' ? rec.MinQty.trim() : '';
+  // "шт" или "уп" (упаковка) сразу после числа — это признак целикового товара,
+  // а не развеса. \b тут не используем — в JS-регулярках граница слова не
+  // распознаёт кириллицу как "словесный" символ и тихо ломает совпадение.
+  const hasPieceWord = /\d\s*(шт|уп)/i.test(minQtyText);
 
   // Три режима цены:
   // 'weight'      — классический развес, покупатель сам вводит граммы (300г мин, шаг 50г)
-  // 'approxPiece' — мясные деликатесы (хамон/прошутто и т.п.) с приблизительным весом
-  //                 куска (напр. "~2.5кг"): продаются целым куском, цена в базе за кг/100г,
-  //                 итог считаем по весу из названия/MinQty
-  // 'flat'        — товар с точным весом упаковки (напр. "1шт (200гр)", без "~") —
-  //                 цена в базе за упаковку целиком, без пересчёта
+  // 'approxPiece' — штучный товар с плавающим весом (напр. хамон/пармезан): продаётся
+  //                 целым куском, но цена в базе за 100г/кг — пересчитываем по весу
+  // 'flat'        — товар с точным весом упаковки — цена в базе за упаковку целиком
   let priceMode = 'flat';
   let pieceWeightGrams = null;
 
-  // Приблизительный вес ищем и в MinQty, и в названии (~2.5кг, ~1.8кг и т.п.)
-  const combinedText = rawName + " " + minQty;
+  // Приблизительный вес из текста — нужен только для старых, ещё не мигрированных
+  // записей (см. ниже). У мигрированных вес — просто число в MinQty.
+  const combinedText = rawName + " " + minQtyText;
   const hasApprox = isApproxText(combinedText);
-  // Если вес указан и в названии, и в MinQty, и они расходятся — MinQty главнее
-  // (это поле специально предназначено для количества/веса, название могло устареть)
   const approxWeightGrams = hasApprox
-    ? (parseApproxWeightGrams(minQty) || parseApproxWeightGrams(rawName))
+    ? (parseApproxWeightGrams(minQtyText) || parseApproxWeightGrams(rawName))
     : null;
 
-  // Мясные деликатесы, которые продаются целым куском — определяем по названию
-  const isWholeItemMeat = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
-  // Пармезан и Грана Падано тоже не режем под заказ — продаём целой головкой,
-  // но цена в базе всё равно за 100г (в отличие от хамона, где база — за кг)
-  const isWholeItemParmesan = /пармезан|parmesan|parmigiano|грана\s*падано|grana\s*padano/i.test(rawName);
+  // Новая схема: два чекбокса — Weighted (развес) и FloatingWeight (штучный
+  // с плавающим весом, цена пересчитывается по весу из MinQty). Считаем строку
+  // "мигрированной", если хоть один явный сигнал уже проставлен — MinQty стало
+  // числом, или одна из галочек включена. Это защищает ещё не тронутые строки
+  // от случайного попадания под чекбоксовую логику с пустыми (false) галочками.
+  const isMigrated = typeof rec.MinQty === 'number' || rec.Weighted === true || rec.FloatingWeight === true;
 
-  if ((isWholeItemMeat || isWholeItemParmesan) && hasApprox && approxWeightGrams) {
+  // Мясные деликатесы, которые продаются целым куском — определяем по названию
+  // (используется только в старой, текстовой ветке ниже)
+  const isWholeItemMeat = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
+  const isWholeItemParmesan = /пармезан|parmesan|parmigiano|грана\s*падано|grana\s*padano/i.test(rawName);
+  const isWholeLeg = /нога/i.test(rawName);
+
+  if (isMigrated) {
+    if (rec.Weighted === true) {
+      priceMode = 'weight';
+    } else if (rec.FloatingWeight === true) {
+      priceMode = 'approxPiece';
+      pieceWeightGrams = minQtyNum || parseApproxWeightGrams(rawName);
+    } else {
+      priceMode = 'flat';
+    }
+  } else if (isWholeLeg) {
+    priceMode = 'flat';
+  } else if ((isWholeItemMeat || isWholeItemParmesan) && hasApprox && approxWeightGrams) {
     priceMode = 'approxPiece';
     pieceWeightGrams = approxWeightGrams;
   } else if (hasPieceWord && !hasApprox) {
     // «1шт (200гр)» без тильды — точный вес упаковки, цена целиком, как есть
     priceMode = 'flat';
-  } else if (minQty || hasApprox) {
+  } else if (minQtyText || hasApprox) {
     // «~300гр», «1шт (~300гр)» и т.п. — режем/взвешиваем под заказ, цена за 100г
     priceMode = 'weight';
   } else {
@@ -881,7 +997,7 @@ function mapRecord(rec) {
   // выше общего порога в 300г — тогда используем его как ориентир (см. resolveWeight)
   let minWeightGrams = null;
   if (priceMode === 'weight') {
-    const g = parseApproxWeightGrams(minQty);
+    const g = isMigrated ? minQtyNum : parseApproxWeightGrams(minQtyText);
     if (g && g > MIN_WEIGHT) minWeightGrams = g;
   }
 
@@ -899,12 +1015,24 @@ function mapRecord(rec) {
 
   const photoList = photoCandidates(rec);
   const subcat = (rec.Subcategory || "").trim() || null;
+  // Sale — отдельный чекбокс, никак не связан с Subcategory
+  const isSale = !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
+  // Что показать мелкой строкой в карточке рядом с флагом страны
+  const minQtyDisplay = isMigrated
+    ? (minQtyNum ? `~${minQtyNum}г` : null)
+    : (minQtyText || null);
+  // Хамон/прошутто и т.п. с плавающим весом — целый кусок, который не режут
+  // под заказ, а просто взвешивают и пересчитывают цену — помечаем плашкой
+  const notCut = isWholeItemMeat && priceMode === 'approxPiece';
 
   return {
     id: idCounter++,
     name: rawName || "Без названия",
     cat: cleanCat,
     subcat,
+    isSale,
+    isLowStock,
+    notCut,
     country: countryFlag(rec.Country),
     price,          // цена как в базе (за 100г/кг для weight/approxPiece, за шт для flat)
     priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
@@ -912,7 +1040,7 @@ function mapRecord(rec) {
     pieceWeightGrams,
     minWeightGrams,  // собственный минимум развесного товара, если выше общего
     unit: priceMode === 'weight' ? "100г" : "шт",
-    minQty: minQty || null,
+    minQty: minQtyDisplay,
     inStock: isAvailable(rec),
     isNew,
     priceMode,
@@ -937,23 +1065,25 @@ function isCheeseCategory(cat) {
 const CHEESE_SUBCAT_ORDER = ["Твёрдые", "Полутвёрдые", "Мягкие", "Десертные"];
 let activeSubcat = null;
 
+// Категории/подкатегории — статичные, рисуем их сразу, не дожидаясь данных
+activeCategory = pickDefaultCategory();
+if (isCheeseCategory(activeCategory)) activeSubcat = CHEESE_SUBCAT_ORDER[0];
+renderCategories();
+
+let catalogFullyLoaded = false;
+
 async function loadCatalog() {
   // 1) первая страница — сразу отрисовываем, чтобы сайт не «висел» на пустом экране
   const first = await fetchPage(0);
   products = first.page.filter(isAvailable).map(mapRecord);
-  CATS = ["Все", ...new Set(products.map(p => p.cat))];
-  activeCategory = pickDefaultCategory();
-  if (isCheeseCategory(activeCategory)) activeSubcat = CHEESE_SUBCAT_ORDER[0];
-  renderCategories();
   renderProducts();
 
-  if (first.isLast) return;
+  if (first.isLast) { catalogFullyLoaded = true; return; }
 
-  // 2) остальное — тихо в фоне, БЕЗ перерисовки после каждой страницы.
-  // Перерисовка каждой страницы разрушала уже отрисованные <img> и заставляла
-  // телефон заново скачивать уже загруженные фото — из-за этого превью и «зависали»
-  // на середине загрузки. Теперь дорисовываем список только один раз, когда все
-  // страницы получены.
+  // 2) остальное — тихо в фоне. Список товаров (с картинками) перерисовываем
+  // только один раз в конце — иначе телефон заново скачивает уже загруженные
+  // фото и превью «зависают». Вкладки категорий теперь статичные и от этого
+  // не зависят вовсе.
   let offset = first.page.length;
   while (true) {
     const { page, isLast } = await fetchPage(offset);
@@ -962,8 +1092,7 @@ async function loadCatalog() {
     offset += page.length;
     if (isLast || offset > 5000) break;
   }
-  CATS = ["Все", ...new Set(products.map(p => p.cat))];
-  renderCategories();
+  catalogFullyLoaded = true;
   renderProducts();
 }
 
@@ -981,12 +1110,8 @@ function renderSubcategories() {
     el.innerHTML = '';
     return;
   }
-  const available = CHEESE_SUBCAT_ORDER.filter(s => products.some(p => p.cat === activeCategory && p.subcat === s));
-  if (!available.length) {
-    el.innerHTML = '';
-    return;
-  }
-  const tabs = ["Все сыры", ...available];
+  // Подкатегории тоже статичные — видны сразу, не дожидаясь загрузки товаров
+  const tabs = ["Все сыры", ...CHEESE_SUBCAT_ORDER];
   el.innerHTML = tabs.map(s => {
     const isActive = (s === "Все сыры" && !activeSubcat) || s === activeSubcat;
     const val = s === "Все сыры" ? "" : s;
@@ -1074,20 +1199,26 @@ function renderProducts() {
 
   // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
   // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
+  // «🔥 Акции» — отдельный сквозной раздел: показывает товары с пометкой isSale
+  // (Subcategory = "sale" в NocoDB) из ЛЮБОЙ категории, сгруппированные по ней же.
+  const saleView = !search && activeCategory === "🔥 Акции";
   const cats = search
     ? [...new Set(products.filter(p => p.name.toLowerCase().includes(search)).map(p => p.cat))]
-    : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
+    : saleView
+      ? [...new Set(products.filter(p => p.isSale).map(p => p.cat))]
+      : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
 
   let html = '';
   let found = 0;
 
   for (const cat of cats) {
-    const applySubcat = !search && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
+    const applySubcat = !search && !saleView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const items = products.filter(p => {
       const matchCat = p.cat === cat;
       const matchSearch = !search || p.name.toLowerCase().includes(search);
       const matchSubcat = !applySubcat || p.subcat === activeSubcat;
-      return matchCat && matchSearch && matchSubcat;
+      const matchSale = !saleView || p.isSale;
+      return matchCat && matchSearch && matchSubcat && matchSale;
     });
     if (!items.length) continue;
     found += items.length;
@@ -1104,8 +1235,10 @@ function renderProducts() {
         const minNote = p.minWeightGrams
           ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft">(можем и ${MIN_WEIGHT}г 🙂)</span></div>`
           : '';
-        const cartTotal = inCart && cartItem.weight
-          ? `<div class="line-total">В корзине: ${cartItem.weight}г = ${Math.round(p.price * cartItem.weight / 100)}₽</div>`
+        const cartWeight = inCart ? (cartItem.pieces||[]).reduce((s,pc)=>s+pc.weight,0) : 0;
+        const cartPieceCount = inCart ? (cartItem.pieces||[]).length : 0;
+        const cartTotal = inCart && cartWeight
+          ? `<div class="line-total">В корзине: ${cartWeight}г${cartPieceCount>1?' ('+cartPieceCount+' шт.)':''} = ${Math.round(p.price * cartWeight / 100)}₽</div>`
           : '';
         actionHtml = `
           <div>
@@ -1117,7 +1250,7 @@ function renderProducts() {
             <div class="weight-label">граммы</div>
             ${minNote}
           </div>
-          <button class="add-btn" onclick="addWeighted(${p.id})">+</button>
+          <button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>
           ${cartTotal}
         `;
       } else {
@@ -1131,7 +1264,7 @@ function renderProducts() {
             <div class="line-total">${p.unitPrice * cartItem.qty}₽</div>
           `;
         } else {
-          actionHtml = `<button class="add-btn" onclick="addFixed(${p.id})">+</button>`;
+          actionHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         }
       }
 
@@ -1149,10 +1282,13 @@ function renderProducts() {
             <div class="prod-name">
               ${esc(p.name)}
               ${p.isNew ? '<span class="badge-new">new</span>' : ''}
+              ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
+              ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
             </div>
             <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
             <div class="prod-price">${priceHtml}</div>
             ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
+            ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
           </div>
           <div class="prod-action">${actionHtml}</div>
         </div>
@@ -1161,7 +1297,9 @@ function renderProducts() {
   }
 
   if (!found) {
-    html = `<div class="no-results">Ничего не найдено 🧀</div>`;
+    html = catalogFullyLoaded
+      ? `<div class="no-results">Ничего не найдено 🧀</div>`
+      : `<div class="no-results">Загрузка ⏳</div>`;
   }
 
   el.innerHTML = html;
@@ -1177,25 +1315,26 @@ async function addWeighted(id) {
   if (!result) return;
   const { weight, note } = result;
 
+  // Каждое добавление — отдельный «кусок» внутри одной позиции товара
+  // (а не суммирование в один общий вес), чтобы в заказе были видны
+  // реальные отдельные куски разного веса
   const existing = cart.find(c=>c.product.id===id);
   if (existing) {
-    existing.weight = (existing.weight||0) + weight;
-    existing.qty = 1;
-    if (note) existing.note = note;
+    existing.pieces.push({ weight, note });
   } else {
-    cart.push({ product: p, qty: 1, weight, note: note || '' });
+    cart.push({ product: p, pieces: [{ weight, note }], expanded: false });
   }
   input.value = '';
   updateCartCount();
   renderProducts();
-  showToast('Добавлено: ' + p.name.substring(0,25)+'…');
+  showToast('Добавлено: ' + p.name);
 }
 
 function addFixed(id) {
   const p = products.find(x=>x.id===id);
   const existing = cart.find(c=>c.product.id===id);
   if (existing) { existing.qty++; }
-  else { cart.push({ product: p, qty: 1, weight: null }); }
+  else { cart.push({ product: p, qty: 1 }); }
   updateCartCount();
   renderProducts();
   showToast('Добавлено в заказ');
@@ -1218,16 +1357,43 @@ function removeFromCart(id) {
   renderProducts();
 }
 
-async function stepCartWeight(id, delta) {
+// Шаг +/- для конкретного куска уже в корзине (по индексу внутри pieces)
+async function stepCartPieceWeight(id, idx, delta) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
-  const base = item.weight || (MIN_WEIGHT - WEIGHT_STEP);
-  const result = await resolveWeight(base + delta * WEIGHT_STEP, item.product.minWeightGrams);
+  const piece = item.pieces[idx];
+  const result = await resolveWeight(piece.weight + delta * WEIGHT_STEP, item.product.minWeightGrams);
   if (!result) { renderCart(); return; }
-  item.weight = result.weight;
-  if (result.note) item.note = result.note;
+  item.pieces[idx] = result;
   renderCart();
   renderProducts();
+}
+
+async function updateCartPieceWeight(id, idx, val) {
+  const item = cart.find(c=>c.product.id===id);
+  if (!item) return;
+  const result = await resolveWeight(parseFloat(val), item.product.minWeightGrams);
+  if (!result) { renderCart(); return; } // откатываем поле к прежнему значению
+  item.pieces[idx] = result;
+  renderCart();
+  renderProducts();
+}
+
+function removeCartPiece(id, idx) {
+  const item = cart.find(c=>c.product.id===id);
+  if (!item) return;
+  item.pieces.splice(idx, 1);
+  if (!item.pieces.length) cart = cart.filter(c=>c.product.id!==id);
+  updateCartCount();
+  renderCart();
+  renderProducts();
+}
+
+function toggleCartExpand(id) {
+  const item = cart.find(c=>c.product.id===id);
+  if (!item) return;
+  item.expanded = !item.expanded;
+  renderCart();
 }
 
 function updateCartCount() {
@@ -1247,6 +1413,38 @@ function toggleCart() {
   }
 }
 
+// Цена одной строки корзины (для товара с учётом его кусков/количества)
+function cartItemLinePrice(item) {
+  const p = item.product;
+  if (p.priceMode === 'weight') {
+    const totalWeight = (item.pieces || []).reduce((s, pc) => s + pc.weight, 0);
+    return Math.round(p.price * totalWeight / 100);
+  }
+  return p.unitPrice * item.qty;
+}
+
+// Считает подытог, скидку по промокоду (не действует на товары с isSale) и итог.
+// Используется и в корзине, и при формировании текста заказа — чтобы суммы не расходились.
+function computeCartTotals() {
+  const promoRaw = (document.getElementById('promoInput')?.value || '').trim();
+  let percent = 0;
+  for (const code in PROMO_CODES) {
+    if (code.toLowerCase() === promoRaw.toLowerCase()) { percent = PROMO_CODES[code]; break; }
+  }
+
+  let subtotal = 0;
+  let discountable = 0;
+  cart.forEach(item => {
+    const linePrice = cartItemLinePrice(item);
+    subtotal += linePrice;
+    if (!item.product.isSale) discountable += linePrice;
+  });
+
+  const discount = percent ? Math.round(discountable * percent / 100) : 0;
+  const total = subtotal - discount;
+  return { subtotal, discount, total, percent, promoRaw };
+}
+
 function renderCart() {
   const body = document.getElementById('cartBody');
 
@@ -1263,19 +1461,65 @@ function renderCart() {
     const p = item.product;
     let linePrice = null;
     let detailText = '';
+    let extraHtml = '';
 
     if (p.priceMode === 'weight') {
-      if (item.weight) {
-        linePrice = Math.round(p.price * item.weight / 100);
-        detailText = item.weight + 'г × ' + p.price + '₽/100г';
-        if (item.note) detailText += ' · ' + item.note;
+      const pieces = item.pieces || [];
+      const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
+      linePrice = Math.round(p.price * totalWeight / 100);
+      detailText = totalWeight + 'г × ' + p.price + '₽/100г'
+        + (pieces.length > 1 ? ` (${pieces.length} шт.)` : '');
+
+      if (pieces.length <= 1) {
+        // Один кусок — редактируем прямо тут, без раскрывающегося списка
+        const piece = pieces[0] || { weight: 0, note: '' };
+        if (piece.note) detailText += ' · ' + piece.note;
+        extraHtml = `
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+            <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,-1)">−</button>
+            <input class="cart-weight-input" type="number" value="${piece.weight||''}" placeholder="от 300г"
+              onchange="updateCartPieceWeight(${p.id},0,this.value)" min="300" step="50">
+            <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,1)">+</button>
+            <span style="font-size:0.65rem;color:var(--gray)">г</span>
+          </div>
+        `;
       } else {
-        detailText = '— г × ' + p.price + '₽/100г (уточнить)';
+        // Несколько кусков — сворачиваем в компактный раскрывающийся список,
+        // чтобы не плодить кучу одинаковых строк товара
+        extraHtml = `
+          <button class="pieces-toggle" onclick="toggleCartExpand(${p.id})">
+            ${item.expanded ? '▲ Свернуть куски' : '▼ Показать куски (' + pieces.length + ')'}
+          </button>
+          ${item.expanded ? `
+            <div class="pieces-list">
+              ${pieces.map((pc, idx) => `
+                <div class="piece-row">
+                  <div class="piece-weight-controls">
+                    <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
+                    <input class="cart-weight-input" type="number" value="${pc.weight}"
+                      onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="50">
+                    <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
+                    <span style="font-size:0.62rem;color:var(--gray)">г</span>
+                  </div>
+                  <span class="piece-price">${Math.round(p.price * pc.weight / 100)}₽${pc.note ? ' · '+esc(pc.note) : ''}</span>
+                  <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        `;
       }
     } else {
       linePrice = p.unitPrice * item.qty;
       detailText = item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
       if (p.priceMode === 'approxPiece') detailText += ` (~${p.pieceWeightGrams}г/шт)`;
+      extraHtml = `
+        <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
+          <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
+          <span class="qty-num">${item.qty}</span>
+          <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
+        </div>
+      `;
     }
 
     if (linePrice) total += linePrice;
@@ -1285,21 +1529,7 @@ function renderCart() {
         <div style="flex:1">
           <div class="cart-item-name">${esc(p.name)}</div>
           <div class="cart-item-detail">${esc(detailText)}</div>
-          ${p.priceMode === 'weight' ? `
-            <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
-              <button class="wstep-btn" onclick="stepCartWeight(${p.id},-1)">−</button>
-              <input class="cart-weight-input" type="number" value="${item.weight||''}" placeholder="от 300г"
-                onchange="updateWeight(${p.id},this.value)" min="300" step="50">
-              <button class="wstep-btn" onclick="stepCartWeight(${p.id},1)">+</button>
-              <span style="font-size:0.65rem;color:var(--gray)">г</span>
-            </div>
-          ` : `
-            <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
-              <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-              <span class="qty-num">${item.qty}</span>
-              <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
-            </div>
-          `}
+          ${extraHtml}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
           <button class="cart-item-remove" onclick="removeFromCart(${p.id})">✕</button>
@@ -1310,19 +1540,16 @@ function renderCart() {
   }
 
   body.innerHTML = html;
-  document.getElementById('totalSum').textContent = total + ' ₽';
-}
 
-async function updateWeight(id, val) {
-  const item = cart.find(c=>c.product.id===id);
-  if (!item) return;
-
-  const result = await resolveWeight(parseFloat(val), item.product.minWeightGrams);
-  if (!result) { renderCart(); return; } // откатываем поле к прежнему значению
-  item.weight = result.weight;
-  if (result.note) item.note = result.note;
-  renderCart();
-  renderProducts();
+  const { subtotal, discount, total: finalTotal, percent } = computeCartTotals();
+  const discountRow = document.getElementById('discountRow');
+  if (discount > 0) {
+    discountRow.style.display = 'flex';
+    discountRow.innerHTML = `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
+  } else {
+    discountRow.style.display = 'none';
+  }
+  document.getElementById('totalSum').textContent = finalTotal + ' ₽';
 }
 
 // ---- Способ доставки ----
@@ -1373,28 +1600,34 @@ function onExpressToggle() {
 }
 
 // Собирает текст заказа: состав + способ получения + контакты
+// Граммы -> килограммы для текста заказа, без лишних нулей (1300 -> "1.3", 300 -> "0.3")
+function gramsToKg(g) {
+  return (g / 1000).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 function buildOrderText() {
   const lines = ['Заказ Mr. Mouse:\n'];
-  let total = 0;
+  let lineNum = 1;
 
-  cart.forEach((item, i) => {
+  cart.forEach(item => {
     const p = item.product;
-    let line = `${i+1}. ${p.name}`;
+    const saleTag = p.isSale ? ' [SALE]' : '';
     if (p.priceMode === 'weight') {
-      if (item.weight) {
-        const sum = Math.round(p.price * item.weight / 100);
-        line += ` (${item.weight}г) × ${p.price}₽/100г = ${sum}₽`;
-        if (item.note) line += ` [${item.note}]`;
-        total += sum;
-      } else {
-        line += ` (вес не указан) × ${p.price}₽/100г`;
-      }
+      const pieces = item.pieces || [];
+      const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
+      const sum = Math.round(p.price * totalWeight / 100);
+      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)} кг) × ${p.price}₽/100г = ${sum}₽`;
+      const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
+      if (notes.length) line += ` [${notes.join('; ')}]`;
+      lines.push(line);
+      lineNum++;
     } else {
       const sum = p.unitPrice * item.qty;
+      let line = `${lineNum}. ${p.name}${saleTag}`;
       line += item.qty > 1 ? ` — ${item.qty} шт × ${p.unitPrice}₽ = ${sum}₽` : ` — ${p.unitPrice}₽`;
-      total += sum;
+      lines.push(line);
+      lineNum++;
     }
-    lines.push(line);
   });
 
   lines.push('');
@@ -1428,6 +1661,11 @@ function buildOrderText() {
   }
 
   lines.push('');
+  const { subtotal, discount, total, percent, promoRaw } = computeCartTotals();
+  lines.push(`Подытог: ${subtotal}₽`);
+  if (discount > 0) {
+    lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
+  }
   lines.push(`Итого: ${total}₽`);
 
   return lines.join('\n');
@@ -1493,16 +1731,17 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
 
-  // Подгоняем размер шрифта под длину текста, чтобы длинные сообщения
-  // («Добавлено: Пармезан... 750г × 320₽/100г = 2400₽») не обрезались
+  // Подгоняем размер шрифта под длину текста, чтобы даже длинные названия
+  // товаров помещались в облачко целиком, без обрезания
   const len = msg.length;
-  let fs = 0.78;
-  if (len > 70) fs = 0.6;
-  else if (len > 50) fs = 0.66;
-  else if (len > 32) fs = 0.72;
+  let fs = 0.8;
+  if (len > 90) fs = 0.58;
+  else if (len > 70) fs = 0.64;
+  else if (len > 50) fs = 0.7;
+  else if (len > 32) fs = 0.76;
   t.style.fontSize = fs + 'rem';
 
-  const duration = Math.min(4500, 2000 + len * 25);
+  const duration = Math.min(5500, 2200 + len * 30);
 
   clearTimeout(toastTimer);
   t.classList.add('show');
