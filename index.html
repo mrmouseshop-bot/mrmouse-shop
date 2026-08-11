@@ -250,6 +250,12 @@
     font-weight: 600;
     color: var(--wine);
   }
+  .old-price {
+    text-decoration: line-through;
+    color: var(--gray);
+    font-weight: 400;
+    font-size: 0.78rem;
+  }
 
   .prod-note {
     font-size: 0.65rem;
@@ -547,6 +553,8 @@
   .promo-clear { background: var(--light-border); color: var(--dark); }
   .field-input, .field-textarea, .field-select {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 9px 10px;
     border: 1.5px solid var(--light-border);
     border-radius: 8px;
@@ -560,6 +568,20 @@
   .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: var(--gold); }
   .field-textarea { resize: vertical; min-height: 54px; font-family: 'Montserrat', sans-serif; }
   .field-input:disabled, .field-textarea:disabled, .field-select:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
+
+  .date-field-wrap { position: relative; width: 100%; max-width: 100%; }
+  .date-field-wrap .field-input { display: block; }
+  .date-placeholder {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.78rem;
+    color: #9a938a;
+    pointer-events: none;
+    background: #fff;
+  }
+  .date-placeholder.hide { display: none; }
 
   .field-row { display: flex; gap: 8px; align-items: flex-start; }
   .field-row .field-select { flex: 1; }
@@ -613,6 +635,31 @@
   .copy-btn:hover { background: var(--wine); }
 
   .empty-cart { text-align: center; padding: 40px 20px; color: var(--gray); font-size: 0.85rem; }
+
+  .giftbox-suggest {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff8ec;
+    border: 1.5px dashed var(--gold);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 10px 0;
+  }
+  .giftbox-suggest-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .giftbox-suggest-title { font-size: 0.75rem; font-weight: 600; color: var(--dark); }
+  .giftbox-suggest-name { font-size: 0.68rem; color: var(--gray); margin-top: 1px; }
+  .giftbox-suggest-btn {
+    flex-shrink: 0;
+    background: var(--wine);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
   .empty-cart .emoji { font-size: 2.5rem; display: block; margin-bottom: 10px; }
 
   .toast {
@@ -743,7 +790,10 @@
           <button class="method-btn active" id="dateTypeBtn-today" onclick="setDeliveryDateType('today')">Сегодня</button>
           <button class="method-btn" id="dateTypeBtn-other" onclick="setDeliveryDateType('other')">Другой день</button>
         </div>
-        <input class="field-input" type="date" id="deliveryDateInput" style="display:none;" oninput="renderCart()">
+        <div class="date-field-wrap" id="dateFieldWrap" style="display:none;">
+          <input class="field-input" type="date" id="deliveryDateInput" oninput="onDeliveryDateInput()">
+          <span class="date-placeholder" id="datePlaceholder">Выбрать дату</span>
+        </div>
 
         <div class="field-row">
           <div style="flex:1">
@@ -774,6 +824,7 @@
     </div>
 
     <label class="field-label" style="margin-top:16px;">Промокод</label>
+    <div class="field-note" style="margin-top:0;">Скидка не действует на товары с пометкой SALE и на технические позиции (упаковка, аккумулятор холода и т.п.)</div>
     <div class="promo-row">
       <input class="field-input" id="promoInput" value="TEST5%" onkeydown="if(event.key==='Enter'){applyPromo();event.preventDefault();}" style="margin-bottom:0;">
       <button class="promo-btn promo-apply" onclick="applyPromo()">Применить</button>
@@ -1060,7 +1111,14 @@ function mapRecord(rec) {
   const isLowStock = !!rec.LowStock || !!rec['Мало'] || !!rec.Low_stock;
   const cleanCat = rawCat.replace(/NEW/gi, "").replace(/🔥/g, "").trim() || "Без категории";
   const rawName = rec.Name || "";
-  const price = parseFloat(rec.Price) || 0;
+  const basePrice = parseFloat(rec.Price) || 0;
+  // Если заполнено SalePrice и оно ниже обычной цены — используем его как
+  // активную цену везде в расчётах; basePrice остаётся только для зачёркнутого
+  // отображения. Когда акция кончилась — просто стираете значение в SalePrice
+  // в NocoDB, и цена сама возвращается к обычной, ничего в коде трогать не нужно.
+  const salePriceRaw = parseFloat(rec.SalePrice || rec['Цена по акции'] || rec['СниженнаяЦена'] || rec['Sale Price'] || '');
+  const salePrice = (salePriceRaw > 0 && salePriceRaw < basePrice) ? salePriceRaw : null;
+  const price = salePrice !== null ? salePrice : basePrice;
 
   // MinQty теперь числовое поле (граммы) — но пока не вся таблица переведена,
   // старые записи могут ещё хранить там текст ("от 1шт (~300гр)" и т.п.)
@@ -1146,8 +1204,14 @@ function mapRecord(rec) {
 
   const photoList = photoCandidates(rec);
   const subcat = (rec.Subcategory || "").trim() || null;
-  // Sale — отдельный чекбокс, никак не связан с Subcategory
-  const isSale = !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
+  // Акция активна, если задан SalePrice (ниже basePrice) — тогда basePrice
+  // показываем зачёркнутым как "старую" цену. Чекбокс Sale по-прежнему тоже
+  // работает — можно пользоваться любым из двух способов.
+  const oldPrice = salePrice !== null ? basePrice : null;
+  const oldUnitPrice = oldPrice !== null
+    ? (priceMode === 'approxPiece' ? Math.round(oldPrice * pieceWeightGrams / priceBaseGrams) : oldPrice)
+    : null;
+  const isSale = salePrice !== null || !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
   // Что показать мелкой строкой в карточке рядом с флагом страны
   const minQtyDisplay = isMigrated
     ? (minQtyNum ? `~${minQtyNum}г` : null)
@@ -1155,6 +1219,9 @@ function mapRecord(rec) {
   // Хамон/прошутто и т.п. с плавающим весом — целый кусок, который не режут
   // под заказ, а просто взвешивают и пересчитывают цену — помечаем плашкой
   const notCut = isWholeItemMeat && priceMode === 'approxPiece';
+  // Технические позиции (аккумулятор холода и т.п.) — не участвуют в скидках
+  // по промокоду, это не товар, а вспомогательный элемент упаковки
+  const isTechnical = /аккумулятор холода|хладоэлемент|аккум\.?\s*холода/i.test(rawName);
 
   // Доп. характеристики сыра — жирность/выдержка/молоко/срок годности
   const fat = (rec.Fat || "").toString().trim() || null;
@@ -1173,7 +1240,9 @@ function mapRecord(rec) {
     isSale,
     isLowStock,
     notCut,
+    isTechnical,
     fat, aging, milk, bestBefore, daysLeft, isExpiringSoon,
+    oldPrice, oldUnitPrice,
     country: countryFlag(rec.Country),
     price,          // цена как в базе (за 100г/кг для weight/approxPiece, за шт для flat)
     priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
@@ -1423,11 +1492,12 @@ function renderProducts() {
       }
 
       const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100г';
+      const oldPriceHtml = p.oldPrice ? `<span class="old-price">${p.priceMode === 'weight' ? p.oldPrice : p.oldUnitPrice}₽</span> ` : '';
       const priceHtml = p.priceMode === 'weight'
-        ? `${p.price}₽/${p.unit}`
+        ? `${oldPriceHtml}${p.price}₽/${p.unit}`
         : p.priceMode === 'approxPiece'
-          ? `${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/${priceBaseLabel})</span>`
-          : `${p.unitPrice}₽`;
+          ? `${oldPriceHtml}${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/${priceBaseLabel})</span>`
+          : `${oldPriceHtml}${p.unitPrice}₽`;
 
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
@@ -1499,6 +1569,26 @@ function addFixed(id) {
   updateCartCount();
   renderProducts();
   showToast('Добавлено в заказ');
+}
+
+// Добавление товара прямо из подсказки в корзине (напр. подарочный бокс)
+async function quickAddSuggested(id) {
+  const p = products.find(x=>x.id===id);
+  if (!p) return;
+  if (p.priceMode === 'weight') {
+    const existing = cart.find(c=>c.product.id===id);
+    const weight = p.minWeightGrams || MIN_WEIGHT;
+    if (existing) existing.pieces.push({ weight, note: '' });
+    else cart.push({ product: p, pieces: [{ weight, note: '' }], expanded: false });
+  } else {
+    const existing = cart.find(c=>c.product.id===id);
+    if (existing) existing.qty++;
+    else cart.push({ product: p, qty: 1 });
+  }
+  updateCartCount();
+  renderCart();
+  renderProducts();
+  showToast('Добавлено: ' + p.name);
 }
 
 function changeQty(id, delta) {
@@ -1627,7 +1717,7 @@ function computeCartTotals() {
   cart.forEach(item => {
     const linePrice = cartItemLinePrice(item);
     subtotal += linePrice;
-    if (!item.product.isSale) discountable += linePrice;
+    if (!item.product.isSale && !item.product.isTechnical) discountable += linePrice;
   });
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
@@ -1731,6 +1821,27 @@ function renderCart() {
     `;
   }
 
+  // От 5 позиций в корзине — предлагаем деревянный подарочный бокс для упаковки,
+  // если он есть в наличии и ещё не добавлен
+  if (cart.length >= 5) {
+    const giftBox = products.find(p =>
+      p.cat === "Подарочный бокс" && /дерев/i.test(p.name) && p.inStock
+    );
+    const alreadyInCart = giftBox && cart.some(c => c.product.id === giftBox.id);
+    if (giftBox && !alreadyInCart) {
+      html += `
+        <div class="giftbox-suggest">
+          <span class="giftbox-suggest-icon">🎁</span>
+          <div style="flex:1">
+            <div class="giftbox-suggest-title">Красиво упаковать заказ?</div>
+            <div class="giftbox-suggest-name">${esc(giftBox.name)} — ${giftBox.unitPrice}₽</div>
+          </div>
+          <button class="giftbox-suggest-btn" onclick="quickAddSuggested(${giftBox.id})">Добавить</button>
+        </div>
+      `;
+    }
+  }
+
   body.innerHTML = html;
 
   const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryNote } = computeCartTotals();
@@ -1806,7 +1917,13 @@ function setDeliveryDateType(type) {
   deliveryDateType = type;
   document.getElementById('dateTypeBtn-today').classList.toggle('active', type === 'today');
   document.getElementById('dateTypeBtn-other').classList.toggle('active', type === 'other');
-  document.getElementById('deliveryDateInput').style.display = type === 'other' ? 'block' : 'none';
+  document.getElementById('dateFieldWrap').style.display = type === 'other' ? 'block' : 'none';
+  renderCart();
+}
+
+function onDeliveryDateInput() {
+  const input = document.getElementById('deliveryDateInput');
+  document.getElementById('datePlaceholder').classList.toggle('hide', !!input.value);
   renderCart();
 }
 
