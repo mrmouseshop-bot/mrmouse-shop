@@ -239,6 +239,11 @@
     text-transform: uppercase;
     margin-bottom: 6px;
   }
+  .prod-specs {
+    font-size: 0.62rem;
+    color: var(--gray);
+    margin-bottom: 4px;
+  }
 
   .prod-price {
     font-size: 0.85rem;
@@ -281,6 +286,18 @@
   .badge-notcut {
     display: inline-block;
     background: #c0392b;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .badge-expiring {
+    display: inline-block;
+    background: #e67e22;
     color: #fff;
     font-size: 0.55rem;
     font-weight: 600;
@@ -906,7 +923,7 @@ let products = [];
 // Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
 // ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
 // эти разделы по мере загрузки.
-const STATIC_CATS = ["Все", "🔥 Акции", "Подарочный бокс", "Доп.", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея"];
+const STATIC_CATS = ["Все", "🔥 Акции", "⏰ УСПЕЙТЕ!", "Подарочный бокс", "Доп.", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея"];
 let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
@@ -985,6 +1002,30 @@ function countryFlag(country) {
   if (!country) return "🧀";
   for (const key in map) if (country.includes(key)) return map[key];
   return "🧀";
+}
+
+// "2026-12-18 00:00:00" -> "18.12.2026"; пустое или "-" -> null
+function formatBestBefore(raw) {
+  if (!raw) return null;
+  const s = raw.toString().trim();
+  if (!s || s === "-") return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+}
+
+// Сколько дней осталось до даты BestBefore, сверяя с реальной датой на устройстве.
+// null, если дата не указана/не распознана.
+function daysUntil(raw) {
+  if (!raw) return null;
+  const s = raw.toString().trim();
+  if (!s || s === "-") return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const expiry = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((expiry - today) / 86400000);
 }
 
 // Ищет вес (в граммах) внутри текста типа "~1кг", "около 950г", "1,2 кг"
@@ -1115,6 +1156,15 @@ function mapRecord(rec) {
   // под заказ, а просто взвешивают и пересчитывают цену — помечаем плашкой
   const notCut = isWholeItemMeat && priceMode === 'approxPiece';
 
+  // Доп. характеристики сыра — жирность/выдержка/молоко/срок годности
+  const fat = (rec.Fat || "").toString().trim() || null;
+  const aging = (rec.Aging || "").toString().trim() || null;
+  const milk = (rec.Milk || "").toString().trim() || null;
+  const bestBefore = formatBestBefore(rec.BestBefore);
+  const daysLeft = daysUntil(rec.BestBefore);
+  // "Успейте!" — до срока годности осталось меньше 31 дня (но ещё не истёк)
+  const isExpiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft < 31;
+
   return {
     id: idCounter++,
     name: rawName || "Без названия",
@@ -1123,6 +1173,7 @@ function mapRecord(rec) {
     isSale,
     isLowStock,
     notCut,
+    fat, aging, milk, bestBefore, daysLeft, isExpiringSoon,
     country: countryFlag(rec.Country),
     price,          // цена как в базе (за 100г/кг для weight/approxPiece, за шт для flat)
     priceBaseGrams, // 100 или 1000 — на что делится price при пересчёте approxPiece
@@ -1298,26 +1349,30 @@ function renderProducts() {
 
   // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
   // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
-  // «🔥 Акции» — отдельный сквозной раздел: показывает товары с пометкой isSale
-  // (Subcategory = "sale" в NocoDB) из ЛЮБОЙ категории, сгруппированные по ней же.
+  // «🔥 Акции» и «⏰ УСПЕЙТЕ!» — отдельные сквозные разделы: показывают товары
+  // с нужной пометкой из ЛЮБОЙ категории, сгруппированные по ней же.
   const saleView = !search && activeCategory === "🔥 Акции";
+  const expiringView = !search && activeCategory === "⏰ УСПЕЙТЕ!";
   const cats = search
     ? [...new Set(products.filter(p => p.name.toLowerCase().includes(search)).map(p => p.cat))]
     : saleView
       ? [...new Set(products.filter(p => p.isSale).map(p => p.cat))]
-      : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
+      : expiringView
+        ? [...new Set(products.filter(p => p.isExpiringSoon).map(p => p.cat))]
+        : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
 
   let html = '';
   let found = 0;
 
   for (const cat of cats) {
-    const applySubcat = !search && !saleView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
+    const applySubcat = !search && !saleView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const items = products.filter(p => {
       const matchCat = p.cat === cat;
       const matchSearch = !search || p.name.toLowerCase().includes(search);
       const matchSubcat = !applySubcat || p.subcat === activeSubcat;
       const matchSale = !saleView || p.isSale;
-      return matchCat && matchSearch && matchSubcat && matchSale;
+      const matchExpiring = !expiringView || p.isExpiringSoon;
+      return matchCat && matchSearch && matchSubcat && matchSale && matchExpiring;
     });
     if (!items.length) continue;
     found += items.length;
@@ -1383,8 +1438,15 @@ function renderProducts() {
               ${p.isNew ? '<span class="badge-new">new</span>' : ''}
               ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
               ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
+              ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
             </div>
             <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
+            ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
+              p.fat && `Жирность ${esc(p.fat)}`,
+              p.aging && `Выдержка ${esc(p.aging)}`,
+              p.milk && esc(p.milk),
+            ].filter(Boolean).join(' · ')}</div>` : ''}
+            ${p.bestBefore ? `<div class="prod-specs">Годен до ${esc(p.bestBefore)}</div>` : ''}
             <div class="prod-price">${priceHtml}</div>
             ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
             ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
