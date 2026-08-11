@@ -391,6 +391,19 @@
     box-shadow: 0 8px 30px rgba(0,0,0,0.3);
   }
   .confirm-box p { font-size: 0.85rem; color: var(--dark); margin-bottom: 16px; line-height: 1.4; }
+  .cdek-notice-box {
+    max-width: 380px;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .cdek-notice-text {
+    text-align: left;
+    font-size: 0.76rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
   .confirm-actions { display: flex; gap: 10px; }
   .confirm-btn {
     flex: 1;
@@ -567,6 +580,7 @@
   }
   .field-input:focus, .field-textarea:focus, .field-select:focus { border-color: var(--gold); }
   .field-textarea { resize: vertical; min-height: 54px; font-family: 'Montserrat', sans-serif; }
+  #commentInput { min-height: 84px; line-height: 1.4; }
   .field-input:disabled, .field-textarea:disabled, .field-select:disabled { background: #f0ece3; color: #b3aca0; cursor: not-allowed; }
 
   .date-field-wrap { position: relative; width: 100%; max-width: 100%; }
@@ -813,6 +827,7 @@
       </div>
 
       <div id="cdekFields" style="display:none">
+        <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
         <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener" class="cdek-find-link">🔍 Найти пункт СДЭК на карте</a>
         <label class="field-label">Город СДЭК</label>
         <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" oninput="renderCart()">
@@ -860,6 +875,24 @@
     <div class="confirm-actions">
       <button class="confirm-btn confirm-no" id="confirmNo">Нет</button>
       <button class="confirm-btn confirm-yes" id="confirmYes">Да</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="cdekNoticeModal">
+  <div class="confirm-box cdek-notice-box">
+    <p class="cdek-notice-text">
+      При необходимости, добавьте аккумулятор(ы) холода, они экономят до ~24ч с момента передачи заказа в доставку.
+      <br><br>
+      <b>Важный момент❗️</b><br>
+      Мы гарантируем качество товара и действующие сроки годности, но ввиду того, что отправка транспортными службами (СДЭК, Боксбери, Деловые линии и т.д.) подразумевает нарушение температурного режима хранения продукта (требуется постоянная температура +2°С +4°С),
+      <br><br>
+      *также мы не можем нести ответственность за изменение/увеличение сроков доставки и возможные физические повреждения при транспортировке.
+      <br><br>
+      <b>ВСЕ РИСКИ, СВЯЗАННЫЕ С ПОТЕРЕЙ ПОТРЕБИТЕЛЬСКИХ КАЧЕСТВ ЛИБО ПОРЧЕЙ ПРОДУКТА, ПОКУПАТЕЛЬ БЕРЁТ НА СЕБЯ.</b>
+    </p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-yes" style="flex:1" onclick="closeCdekNotice()">Ознакомился</button>
     </div>
   </div>
 </div>
@@ -1874,6 +1907,9 @@ function setDeliveryMethod(method) {
   document.getElementById('methodBtn-cdek').classList.toggle('active', method === 'cdek');
 
   document.getElementById('cdekFields').style.display = method === 'cdek' ? 'block' : 'none';
+  if (method === 'cdek') {
+    document.getElementById('cdekNoticeModal').classList.add('open');
+  }
 
   const addressInput = document.getElementById('addressInput');
   const timeSelect = document.getElementById('timeSelect');
@@ -1883,7 +1919,9 @@ function setDeliveryMethod(method) {
   addressInput.disabled = !isCourier;
   timeSelect.disabled = !isCourier;
   expressCheck.disabled = !isCourier;
-  cashCheck.disabled = expressCheck.checked;
+  // СДЭК — тоже только по предоплате, как и срочная доставка
+  cashCheck.disabled = expressCheck.checked || method === 'cdek';
+  if (cashCheck.disabled) cashCheck.checked = false;
   if (method === 'pickup') {
     addressInput.placeholder = 'Самовывоз: Марьино, ул. Донецкая, д 19';
   } else {
@@ -1908,6 +1946,10 @@ function initTimeSelect() {
   const sel = document.getElementById('timeSelect');
   sel.innerHTML = '<option value="">Выберите время</option>' +
     buildTimeSlots().map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function closeCdekNotice() {
+  document.getElementById('cdekNoticeModal').classList.remove('open');
 }
 
 function onExpressToggle() {
@@ -2033,7 +2075,7 @@ function buildOrderText() {
     lines.push('Способ получения: СДЭК');
     lines.push(`Город: ${city || '—'}`);
     lines.push(`Пункт выдачи/адрес: ${cdekAddress || '—'}`);
-    if (cash) lines.push('Оплата: наличными');
+    lines.push('Оплата: по предоплате (СДЭК)');
   }
 
   lines.push(`Телефон: ${phone || '—'}`);
