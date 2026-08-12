@@ -1,0 +1,38 @@
+name: Обновить офлайн-версию сайта
+
+on:
+  schedule:
+    # каждый день в 03:30 по UTC (06:30 по Москве) — сразу после build-photos.yml,
+    # чтобы offline.html подхватывал уже обновлённый photos.js
+    - cron: '30 3 * * *'
+  workflow_dispatch: {}   # позволяет запустить вручную кнопкой в вкладке Actions
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Установить зависимости
+        run: pip install requests
+
+      - name: Собрать offline.html
+        run: python build_offline_snapshot.py
+        env:
+          NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+
+      - name: Подтянуть свежие изменения (на случай правок во время сборки)
+        run: git pull --rebase --autostash origin main
+
+      - name: Закоммитить обновлённый файл
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Автообновление офлайн-версии сайта'
+          file_pattern: offline.html
