@@ -490,6 +490,7 @@
     border-radius: 8px;
     padding: 8px 10px;
     margin-top: 12px;
+    margin-bottom: 10px;
     flex-shrink: 0;
   }
   .cdek-icepack-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--wine); flex-shrink: 0; }
@@ -1056,7 +1057,7 @@
           <label for="cashCheck">Хочу оплатить наличными</label>
         </div>
         <div class="field-note" id="cashExpressWarning" style="display:none;color:#c0392b;">
-          При срочной доставке оплата наличными недоступна — заказ везёт курьер Яндекс, который не отвечает за приём оплаты в вашу пользу. Только предоплата.
+          Только предоплата. При срочной доставке оплата наличными недоступна — заказ везёт курьер сторонней курьерской организации (Яндекс), который не отвечает за приём оплаты.
         </div>
         <div class="field-note" id="deliveryCostNote" style="margin-top:6px;"></div>
       </div>
@@ -1064,10 +1065,12 @@
       <div id="cdekFields" style="display:none">
         <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
         <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener" class="cdek-find-link">🔍 Найти пункт СДЭК на карте</a>
-        <label class="field-label">Город СДЭК</label>
+        <label class="field-label">Город</label>
         <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" oninput="renderCart()">
         <label class="field-label">Пункт выдачи / адрес СДЭК</label>
         <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" oninput="renderCart()">
+        <label class="field-label">ФИО получателя</label>
+        <input class="field-input" id="cdekFio" placeholder="Иванов Иван Иванович" oninput="renderCart()">
       </div>
 
       <label class="field-label" id="phoneLabel">Номер телефона</label>
@@ -2537,6 +2540,13 @@ function setDeliveryMethod(method) {
   expressCheck.disabled = !isCourier;
   document.getElementById('dateTypeBtn-today').disabled = !isCourier;
   document.getElementById('dateTypeBtn-other').disabled = !isCourier;
+  document.getElementById('deliveryDateInput').disabled = !isCourier;
+  // Если ушли с "курьером", сворачиваем открытое поле "Другой день" —
+  // иначе оно визуально остаётся раскрытым при СДЭК/самовывозе, хотя
+  // к ним не относится
+  if (!isCourier && deliveryDateType === 'other') {
+    setDeliveryDateType('today');
+  }
   // СДЭК — тоже только по предоплате, как и срочная доставка
   cashCheck.disabled = expressCheck.checked || method === 'cdek';
   if (cashCheck.disabled) cashCheck.checked = false;
@@ -2605,6 +2615,7 @@ function closeCdekNotice() {
       else cart.push({ product: icepack, qty });
       updateCartCount();
       renderProducts();
+      renderCart();
       showToast(`Добавлено: ${icepack.name} ×${qty}`);
     } else {
       showToast('Не нашли товар «Аккумулятор холода» в каталоге');
@@ -2695,7 +2706,7 @@ function gramsToKg(g) {
 }
 
 function buildOrderText() {
-  const lines = ['Заказ Mr. Mouse:\n'];
+  const lines = ['Здравствуй, Mr. Mouse, мой заказ:\n'];
   let lineNum = 1;
 
   cart.forEach(item => {
@@ -2706,8 +2717,10 @@ function buildOrderText() {
       const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
       const sum = Math.round(p.price * totalWeight / 100);
       let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)} кг) × ${p.price}₽/100г = ${sum}₽`;
-      const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
-      if (notes.length) line += ` [${notes.join('; ')}]`;
+      if (pieces.length <= 1) {
+        const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
+        if (notes.length) line += ` [${notes.join('; ')}]`;
+      }
       lines.push(line);
       // Если кусков несколько — отдельной строкой расписываем, как именно
       // покупатель их разбил (менеджер иначе видит только суммарный вес)
@@ -2744,17 +2757,17 @@ function buildOrderText() {
       lines.push(`Время: ${time || '—'}`);
       if (cash) lines.push('Оплата: наличными');
     }
-    const { deliveryNote } = computeCartTotals();
-    if (deliveryNote) lines.push(deliveryNote);
   } else if (deliveryMethod === 'pickup') {
     lines.push('Способ получения: самовывоз (Марьино, ул. Донецкая, д 19)');
     if (cash) lines.push('Оплата: наличными');
   } else if (deliveryMethod === 'cdek') {
     const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
+    const fio = document.getElementById('cdekFio').value.trim();
     lines.push('Способ получения: СДЭК');
     lines.push(`Город: ${city || '—'}`);
     lines.push(`Пункт выдачи/адрес: ${cdekAddress || '—'}`);
+    lines.push(`ФИО получателя: ${fio || '—'}`);
     lines.push('Оплата: по предоплате (СДЭК)');
   }
 
@@ -2773,7 +2786,7 @@ function buildOrderText() {
     lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
   }
   if (deliveryCost > 0) {
-    lines.push(`Доставка: ${deliveryCost}₽ (ориентировочно)`);
+    lines.push(`Доставка: ${deliveryCost}₽ (ориентировочно, перерасчёт произойдёт после фактического оформления доставки)`);
   }
   lines.push(`Итого: ${total}₽`);
 
@@ -2798,7 +2811,9 @@ function validateOrderFields() {
   } else if (deliveryMethod === 'cdek') {
     const city = document.getElementById('cdekCity').value.trim();
     const cdekAddress = document.getElementById('cdekAddress').value.trim();
+    const fio = document.getElementById('cdekFio').value.trim();
     if (!city || !cdekAddress) { showToast('Укажите город и пункт выдачи СДЭК'); return false; }
+    if (!fio) { showToast('Укажите ФИО получателя для СДЭК'); return false; }
   }
   return true;
 }
