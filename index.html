@@ -459,18 +459,48 @@
   }
   .confirm-box p { font-size: 0.85rem; color: var(--dark); margin-bottom: 16px; line-height: 1.4; }
   .cdek-notice-box {
+    width: 90vw;
     max-width: 380px;
-    max-height: 82vh;
+    max-height: 88vh;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   .cdek-notice-text {
     text-align: left;
     font-size: 0.76rem;
-    max-height: 60vh;
     overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
     padding-right: 4px;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
+  .cdek-icepack-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+    font-size: 0.72rem;
+    color: var(--dark);
+    background: #fff8ec;
+    border: 1.5px dashed var(--gold);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 12px;
+    flex-shrink: 0;
+  }
+  .cdek-icepack-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--wine); flex-shrink: 0; }
+  .cdek-icepack-qty {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .cdek-icepack-qty.show { display: flex; }
   .parts-input-row {
     display: flex;
     align-items: center;
@@ -786,6 +816,27 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .scroll-top-btn {
+    position: fixed;
+    right: 14px;
+    bottom: 18px;
+    z-index: 150;
+    background: var(--dark);
+    color: var(--gold);
+    border: none;
+    border-radius: 24px;
+    padding: 9px 14px 9px 12px;
+    display: none;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    cursor: pointer;
+    opacity: 0.88;
+  }
+  .scroll-top-btn.show { display: flex; }
+  .scroll-top-arrow { font-size: 0.95rem; line-height: 1; }
+  .scroll-top-label { font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
+
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
 
@@ -1001,8 +1052,11 @@
           <label for="expressCheck">Срочная доставка (по предоплате)</label>
         </div>
         <div class="express-row">
-          <input type="checkbox" id="cashCheck" onchange="renderCart()">
+          <input type="checkbox" id="cashCheck" onchange="onCashToggle()">
           <label for="cashCheck">Хочу оплатить наличными</label>
+        </div>
+        <div class="field-note" id="cashExpressWarning" style="display:none;color:#c0392b;">
+          При срочной доставке оплата наличными недоступна — заказ везёт курьер Яндекс, который не отвечает за приём оплаты в вашу пользу. Только предоплата.
         </div>
         <div class="field-note" id="deliveryCostNote" style="margin-top:6px;"></div>
       </div>
@@ -1050,6 +1104,11 @@
 
 <div class="toast" id="toast"></div>
 
+<button class="scroll-top-btn" id="scrollTopBtn" onclick="scrollToTop()">
+  <span class="scroll-top-arrow">↑</span>
+  <span class="scroll-top-label">Лифт вверх</span>
+</button>
+
 <div class="confirm-overlay" id="confirmModal">
   <div class="confirm-box">
     <p id="confirmText"></p>
@@ -1072,8 +1131,30 @@
       <br><br>
       <b>ВСЕ РИСКИ, СВЯЗАННЫЕ С ПОТЕРЕЙ ПОТРЕБИТЕЛЬСКИХ КАЧЕСТВ ЛИБО ПОРЧЕЙ ПРОДУКТА, ПОКУПАТЕЛЬ БЕРЁТ НА СЕБЯ.</b>
     </p>
+    <label class="cdek-icepack-row">
+      <input type="checkbox" id="cdekIcepackCheck" onchange="onCdekIcepackToggle()">
+      <span>Добавить аккумулятор(ы) холода в корзину</span>
+      <span class="cdek-icepack-qty" id="cdekIcepackQty">
+        <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(-1)">−</button>
+        <span id="cdekIcepackCount">1</span>
+        <button class="wstep-btn" type="button" onclick="event.preventDefault();adjustCdekIcepackQty(1)">+</button>
+      </span>
+    </label>
     <div class="confirm-actions">
       <button class="confirm-btn confirm-yes" style="flex:1" onclick="closeCdekNotice()">Ознакомился</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="longOrderModal">
+  <div class="confirm-box">
+    <p>
+      ⚠️ Внимание, состав заказа слишком длинный для прямой отправки в Telegram.
+      Текст уже скопирован в ваш буфер обмена — после открытия чата с менеджером
+      просто нажмите и удерживайте поле ввода, выберите «Вставить» и отправьте сообщение.
+    </p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-yes" style="flex:1" id="longOrderOkBtn">Понятно, вставлю сам</button>
     </div>
   </div>
 </div>
@@ -1226,7 +1307,7 @@ function askPartsCount(weight) {
 // (например «от 400г»), если он больше общего MIN_WEIGHT. Жёсткий пол всегда
 // MIN_WEIGHT (300г): меньше него не даём в любом случае, а вот между 300 и
 // productMinGrams — разрешаем, но по-дружески предупреждаем.
-async function resolveWeight(rawWeight, productMinGrams) {
+async function resolveWeight(rawWeight, productMinGrams, explicitPieces) {
   if (!rawWeight || rawWeight <= 0) {
     showToast('Введите вес в граммах');
     return null;
@@ -1244,6 +1325,12 @@ async function resolveWeight(rawWeight, productMinGrams) {
     );
     if (!ok) return null;
     note = `меньше обычного минимума (${productMinGrams}г)`;
+  }
+
+  // Клиент уже явно натапал количество кусков кнопками порций — это и есть
+  // его ответ на "как порезать", повторно спрашивать не нужно
+  if (explicitPieces && explicitPieces.length > 1) {
+    return { pieces: explicitPieces.map(w => ({ weight: w, note })) };
   }
 
   // Заметно большой вес — сразу спрашиваем количество частей (с полем ввода),
@@ -1274,6 +1361,7 @@ function stepProductWeight(id, delta) {
   else v = v + delta * WEIGHT_STEP;
   if (v < 0) v = 0;
   input.value = v || '';
+  input.dataset.viaPortions = 'false';
   syncPortionLabel(id);
 }
 
@@ -1283,6 +1371,9 @@ function adjustPortions(id, delta, base) {
   const current = parseFloat(input.value) || 0;
   const portions = Math.max(1, Math.round(current / base) + delta);
   input.value = portions * base;
+  input.dataset.viaPortions = 'true';
+  input.dataset.portionsCount = portions;
+  input.dataset.portionsBase = base;
   const label = document.getElementById('portions' + id);
   if (label) label.textContent = '×' + portions;
 }
@@ -1293,6 +1384,7 @@ function syncPortionLabel(id) {
   if (!label) return;
   const b = parseInt(label.dataset.base, 10) || 300;
   const input = document.getElementById('w' + id);
+  input.dataset.viaPortions = 'false';
   const v = parseFloat(input.value) || 0;
   const portions = v > 0 ? Math.max(1, Math.round(v / b)) : 1;
   label.textContent = '×' + portions;
@@ -2013,7 +2105,18 @@ async function addWeighted(id) {
   // Пустое поле + просто нажатие «+» — добавляем минимальный вес товара
   const rawWeight = input.value ? parseFloat(input.value) : (p.minWeightGrams || MIN_WEIGHT);
 
-  const result = await resolveWeight(rawWeight, p.minWeightGrams);
+  // Если вес набран кнопками порций (натапан явно) — куски уже однозначно
+  // заданы клиентом, повторно спрашивать "как порезать" не нужно
+  let explicitPieces = null;
+  if (input.dataset.viaPortions === 'true') {
+    const count = parseInt(input.dataset.portionsCount, 10) || 0;
+    const base = parseInt(input.dataset.portionsBase, 10) || 0;
+    if (count > 0 && base > 0 && count * base === rawWeight) {
+      explicitPieces = Array(count).fill(base);
+    }
+  }
+
+  const result = await resolveWeight(rawWeight, p.minWeightGrams, explicitPieces);
   if (!result) return;
 
   // Каждое добавление — отдельный «кусок» (или несколько, если разделили)
@@ -2026,6 +2129,7 @@ async function addWeighted(id) {
     cart.push({ product: p, pieces: [...result.pieces], expanded: result.pieces.length > 1 });
   }
   input.value = '';
+  input.dataset.viaPortions = 'false';
   updateCartCount();
   renderProducts();
   showToast('Добавлено: ' + p.name);
@@ -2429,8 +2533,53 @@ function initTimeSelect() {
     buildTimeSlots().map(s => `<option value="${s}">${s}</option>`).join('');
 }
 
+function onCdekIcepackToggle() {
+  const checked = document.getElementById('cdekIcepackCheck').checked;
+  document.getElementById('cdekIcepackQty').classList.toggle('show', checked);
+  if (checked) document.getElementById('cdekIcepackCount').textContent = '1';
+}
+
+function adjustCdekIcepackQty(delta) {
+  const el = document.getElementById('cdekIcepackCount');
+  const next = Math.max(1, (parseInt(el.textContent, 10) || 1) + delta);
+  el.textContent = next;
+}
+
+// Блокирующее предупреждение перед переходом в Telegram, когда заказ
+// слишком длинный для прямой ссылки — ждём явного нажатия "Понятно"
+function showLongOrderNotice() {
+  return new Promise(resolve => {
+    const modal = document.getElementById('longOrderModal');
+    const btn = document.getElementById('longOrderOkBtn');
+    modal.classList.add('open');
+    btn.onclick = () => {
+      modal.classList.remove('open');
+      btn.onclick = null;
+      resolve();
+    };
+  });
+}
+
 function closeCdekNotice() {
   document.getElementById('cdekNoticeModal').classList.remove('open');
+
+  if (document.getElementById('cdekIcepackCheck').checked) {
+    const qty = parseInt(document.getElementById('cdekIcepackCount').textContent, 10) || 1;
+    const icepack = products.find(p => /аккумулятор холода/i.test(p.name));
+    if (icepack) {
+      const existing = cart.find(c => c.product.id === icepack.id);
+      if (existing) existing.qty += qty;
+      else cart.push({ product: icepack, qty });
+      updateCartCount();
+      renderProducts();
+      showToast(`Добавлено: ${icepack.name} ×${qty}`);
+    } else {
+      showToast('Не нашли товар «Аккумулятор холода» в каталоге');
+    }
+    // сбрасываем состояние чекбокса на будущее открытие модалки
+    document.getElementById('cdekIcepackCheck').checked = false;
+    document.getElementById('cdekIcepackQty').classList.remove('show');
+  }
 }
 
 function onExpressToggle() {
@@ -2438,8 +2587,25 @@ function onExpressToggle() {
   document.getElementById('timeSelect').disabled = checked;
   // Оплата наличными несовместима со срочной доставкой (она по предоплате)
   const cashCheck = document.getElementById('cashCheck');
+  const wasCash = cashCheck.checked;
   cashCheck.disabled = checked;
   if (checked) cashCheck.checked = false;
+  const warning = document.getElementById('cashExpressWarning');
+  if (checked && wasCash) {
+    warning.style.display = 'block';
+  } else if (!checked) {
+    warning.style.display = 'none';
+  }
+  renderCart();
+}
+
+// Если наличные уже отмечены, а человек пытается включить срочную доставку —
+// предупреждение покажет onExpressToggle. Здесь просто прячем предупреждение,
+// если наличные сняли вручную.
+function onCashToggle() {
+  if (!document.getElementById('cashCheck').checked) {
+    document.getElementById('cashExpressWarning').style.display = 'none';
+  }
   renderCart();
 }
 
@@ -2625,8 +2791,28 @@ function sendOrder(channel) {
   }
 
   if (channel === 'telegram') {
-    const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encodeURIComponent(text)}`;
-    if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+    const encoded = encodeURIComponent(text);
+    // У Telegram есть реальный предел длины параметра ?text= в ссылке
+    // t.me/username?text=... — при превышении сервер Telegram отвечает
+    // 400 Bad Request. Кириллица при url-кодировании "раздувается" почти
+    // втрое (одна буква -> %D0%9F), поэтому предел ощутимо ниже, чем
+    // кажется по длине исходного текста. Оставляем запас и, если заказ
+    // большой, вместо прямой ссылки с текстом просто копируем текст и
+    // открываем чат пустым — так же, как уже сделано для MAX.
+    const TELEGRAM_TEXT_LIMIT = 2000;
+    if (encoded.length <= TELEGRAM_TEXT_LIMIT) {
+      const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}?text=${encoded}`;
+      if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+    } else {
+      // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
+      // легко пропустить, пока страница уже переключается на другое приложение)
+      copyTextToClipboard(text).then(() => {
+        showLongOrderNotice().then(() => {
+          const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
+          if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
+        });
+      });
+    }
   } else if (channel === 'whatsapp') {
     const url = `https://wa.me/${CONFIG.WHATSAPP_PHONE}?text=${encodeURIComponent(text)}`;
     if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank');
@@ -2675,6 +2861,16 @@ document.addEventListener('touchend', function (e) {
   if (now - lastTouchEnd <= 350) e.preventDefault();
   lastTouchEnd = now;
 }, { passive: false });
+
+// Кнопка «Лифт вверх» — появляется после прокрутки вниз, скроллит к началу
+// каталога (к категориям), не перекрывая карточки товаров
+function scrollToTop() {
+  const target = document.getElementById('categories') || document.body;
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+window.addEventListener('scroll', () => {
+  document.getElementById('scrollTopBtn').classList.toggle('show', window.scrollY > 500);
+}, { passive: true });
 
 initTimeSelect();
 
