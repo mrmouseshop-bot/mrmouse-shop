@@ -228,13 +228,38 @@
     border-radius: 12px;
     padding: 14px;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
     transition: box-shadow 0.2s;
   }
   .product-card:hover { box-shadow: var(--shadow); }
   .product-card.out-of-stock { opacity: 0.45; }
+
+  .prod-top-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .prod-action {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--light-border);
+  }
+  .prod-reset-btn {
+    background: none;
+    border: none;
+    color: var(--gray);
+    font-size: 0.65rem;
+    cursor: pointer;
+    margin-right: auto;
+    padding: 4px 0;
+  }
+  .prod-reset-btn:active { color: #c0392b; }
 
   .prod-thumb {
     width: 52px; height: 52px; flex-shrink: 0;
@@ -340,8 +365,6 @@
     margin-left: 6px;
     vertical-align: middle;
   }
-
-  .prod-action { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
   .add-btn {
     background: var(--dark);
@@ -1113,6 +1136,26 @@ function roundToStep(w, step = WEIGHT_STEP) {
   return Math.round(w / step) * step;
 }
 
+// Компактно расписывает куски позиции: одинаковые по весу и пометке —
+// через множитель (напр. "300г×2"), разные — через запятую. Показывается
+// сразу рядом с позицией, без необходимости разворачивать список.
+function formatPiecesBreakdown(pieces) {
+  const groups = [];
+  const index = {};
+  pieces.forEach(pc => {
+    const key = pc.weight + '|' + (pc.note || '');
+    if (index[key] === undefined) {
+      index[key] = groups.length;
+      groups.push({ weight: pc.weight, note: pc.note || '', count: 0 });
+    }
+    groups[index[key]].count++;
+  });
+  return groups.map(g => {
+    const base = g.count > 1 ? `${g.weight}г×${g.count}` : `${g.weight}г`;
+    return g.note ? `${base} (${g.note})` : base;
+  }).join(', ');
+}
+
 // Свой модальный confirm — не зависит от tg.showConfirm
 // (в некоторых клиентах Telegram showConfirm не отрабатывал и «вешал» добавление в корзину)
 function askConfirm(message, yesLabel = 'Да', noLabel = 'Нет') {
@@ -1350,6 +1393,8 @@ function parseBestBeforeParts(raw) {
   if (m) return { y: m[1], m: m[2], d: m[3] };
   m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); // ДД.ММ.ГГГГ
   if (m) return { y: m[3], m: m[2], d: m[1] };
+  m = s.match(/^(\d{2})\.(\d{2})\.(\d{2})$/); // ДД.ММ.ГГ (2-значный год)
+  if (m) return { y: String(2000 + parseInt(m[3], 10)), m: m[2], d: m[1] };
   return null;
 }
 
@@ -1927,29 +1972,35 @@ function renderProductCards(items) {
           ? `${oldPriceHtml}${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/${priceBaseLabel})</span>`
           : `${oldPriceHtml}${p.unitPrice}₽`;
 
+      const resetBtn = inCart
+        ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`
+        : '';
+
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
-          <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
-          <div class="prod-info">
-            <div class="prod-name">
-              ${esc(p.name)}
-              ${p.isNew ? '<span class="badge-new">new</span>' : ''}
-              ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
-              ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
-              ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
+          <div class="prod-top-row">
+            <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+            <div class="prod-info">
+              <div class="prod-name">
+                ${esc(p.name)}
+                ${p.isNew ? '<span class="badge-new">new</span>' : ''}
+                ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
+                ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
+                ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
+              </div>
+              <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
+              ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
+                p.fat && `Жирность ${esc(p.fat)}`,
+                p.aging && `Выдержка ${esc(p.aging)}`,
+                p.milk && esc(p.milk),
+              ].filter(Boolean).join(' · ')}</div>` : ''}
+              ${p.bestBefore ? `<div class="prod-specs">Годен до ${esc(p.bestBefore)}</div>` : ''}
+              <div class="prod-price">${priceHtml}</div>
+              ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
+              ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
             </div>
-            <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
-            ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
-              p.fat && `Жирность ${esc(p.fat)}`,
-              p.aging && `Выдержка ${esc(p.aging)}`,
-              p.milk && esc(p.milk),
-            ].filter(Boolean).join(' · ')}</div>` : ''}
-            ${p.bestBefore ? `<div class="prod-specs">Годен до ${esc(p.bestBefore)}</div>` : ''}
-            <div class="prod-price">${priceHtml}</div>
-            ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
-            ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
           </div>
-          <div class="prod-action">${actionHtml}</div>
+          <div class="prod-action">${actionHtml}${resetBtn}</div>
         </div>
       `;
     }
@@ -2207,8 +2258,10 @@ function renderCart() {
       const pieces = item.pieces || [];
       const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
       linePrice = Math.round(p.price * totalWeight / 100);
-      detailText = totalWeight + 'г × ' + p.price + '₽/100г'
-        + (pieces.length > 1 ? ` (${pieces.length} шт.)` : '');
+      detailText = totalWeight + 'г × ' + p.price + '₽/100г';
+      if (pieces.length > 1) {
+        detailText += ' — ' + formatPiecesBreakdown(pieces);
+      }
 
       if (pieces.length <= 1) {
         // Один кусок — редактируем прямо тут, без раскрывающегося списка
@@ -2609,6 +2662,19 @@ function showToast(msg) {
   t.classList.add('show');
   toastTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
+
+// iOS Safari игнорирует user-scalable=no в meta viewport — блокируем
+// масштабирование жестами вручную: щипок двумя пальцами и двойной тап
+document.addEventListener('touchmove', function (e) {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (e) {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 350) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
 
 initTimeSelect();
 
