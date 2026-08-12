@@ -44,6 +44,21 @@
     height: 60px;
   }
 
+  .offline-mini-bar {
+    display: none;
+    background: var(--wine);
+    text-align: center;
+    padding: 5px 10px;
+  }
+  .offline-mini-bar.show { display: block; }
+  .offline-mini-link {
+    color: #fff;
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-decoration: none;
+    touch-action: manipulation;
+  }
+
   .logo {
     font-family: 'Cormorant Garamond', serif;
     font-size: 1.5rem;
@@ -464,6 +479,7 @@
   .weight-input:focus { border-color: var(--gold); }
   .weight-label { font-size: 0.6rem; color: var(--gray); }
   .weight-min-note { font-size: 0.58rem; color: var(--gray); line-height: 1.3; text-align: left; }
+  .counter-explain { font-size: 0.56rem; color: var(--gray); font-style: italic; line-height: 1.3; }
   .portion-row { display: flex; align-items: center; justify-content: flex-start; gap: 4px; }
   .portion-btn {
     background: var(--wine);
@@ -968,25 +984,26 @@
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
 
-  .site-footer {
+  .offline-modal-box {
     text-align: center;
-    padding: 24px 20px 32px;
-    border-top: 1px solid var(--light-border);
-    margin-top: 20px;
   }
+  .offline-modal-box .offline-modal-icon { font-size: 2rem; margin-bottom: 8px; }
+  .offline-modal-box p { margin-bottom: 6px; }
+  .offline-modal-actions { flex-direction: column; gap: 8px; }
+  .offline-modal-actions .confirm-btn { flex: none; width: 100%; box-sizing: border-box; }
   .offline-download-link {
-    display: inline-block;
-    color: var(--wine);
+    display: block;
+    text-align: center;
+    background: var(--wine);
+    color: #fff;
     font-size: 0.78rem;
     font-weight: 600;
     text-decoration: none;
-    padding: 8px 14px;
-    border: 1.5px solid var(--wine);
-    border-radius: 20px;
+    padding: 10px 14px;
+    border-radius: 8px;
     touch-action: manipulation;
   }
-  .offline-download-link:active { background: var(--wine); color: #fff; }
-  .offline-download-hint { margin-top: 8px; font-size: 0.65rem; color: var(--gray); }
+  .offline-download-link:active { background: var(--dark); }
 
   .search-wrap { padding: 12px 16px 0; position: relative; }
   .search-input {
@@ -1086,6 +1103,9 @@
 </head>
 <body>
 
+<div class="offline-mini-bar" id="offlineMiniBar">
+  <a href="offline.html" download class="offline-mini-link">📥 Скачать офлайн-версию</a>
+</div>
 <header>
   <div class="logo">Mr.<span>Mouse</span></div>
   <button class="cart-btn" onclick="toggleCart()">
@@ -1157,11 +1177,16 @@
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
 
-<div class="site-footer">
-  <a class="offline-download-link" href="offline.html" download>
-    📥 Скачать офлайн-версию магазина (на случай, если сайт не грузится)
-  </a>
-  <div class="offline-download-hint">Сохраните на телефон заранее — работает без интернета</div>
+<div class="confirm-overlay" id="offlineDownloadModal">
+  <div class="confirm-box offline-modal-box">
+    <div class="offline-modal-icon">📥</div>
+    <p><b>Сохраните офлайн-версию магазина</b></p>
+    <p style="font-size:0.72rem;color:var(--gray);">Пригодится, если сайт вдруг не загрузится — каталог, корзина и заказ через мессенджер работают даже без интернета.</p>
+    <div class="confirm-actions offline-modal-actions">
+      <a class="offline-download-link" href="offline.html" download onclick="dismissOfflinePrompt()">Скачать</a>
+      <button class="confirm-btn confirm-no" onclick="dismissOfflinePrompt()">Не сейчас</button>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
@@ -1585,7 +1610,7 @@ let products = [];
 // Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
 // ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
 // эти разделы по мере загрузки.
-const STATIC_CATS = ["Все", "🔥 Акции", "⏰ УСПЕЙТЕ!", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея", "Подарочный бокс", "Доп."];
+const STATIC_CATS = ["Все", "🔥 Акции", "🆕 NEW", "⏰ УСПЕЙТЕ!", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея", "Подарочный бокс", "Доп."];
 let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
@@ -1912,9 +1937,10 @@ function mapRecord(rec) {
   };
 }
 
-// Определяем стартовую категорию — раздел с сырами, чтобы первый экран
-// не ждал загрузки вообще всего каталога
+// Определяем стартовую категорию — сразу открываем раздел новинок (NEW),
+// чтобы покупатель в первую очередь видел, что нового появилось в магазине
 function pickDefaultCategory() {
+  if (CATS.includes("🆕 NEW")) return "🆕 NEW";
   const cheeseCat = CATS.find(c => c !== "Все" && /сыр/i.test(c));
   return cheeseCat || (CATS[1] || "Все");
 }
@@ -1988,8 +2014,6 @@ async function loadCatalog() {
     renderProducts();
     showToast(`📦 Офлайн-версия каталога от ${window.OFFLINE_SNAPSHOT.generatedAt}`);
     // Уже открыта офлайн-версия — предлагать скачать её же саму себя не нужно
-    const footer = document.querySelector('.site-footer');
-    if (footer) footer.style.display = 'none';
     return;
   }
 
@@ -2001,6 +2025,7 @@ async function loadCatalog() {
     applyRawRecords(cached.records);
     catalogFullyLoaded = true;
     renderProducts();
+    maybeShowOfflinePrompt();
     return;
   }
 
@@ -2027,6 +2052,7 @@ async function loadCatalog() {
     catalogFullyLoaded = true;
     renderProducts();
     writeCatalogCache(allRawRecords);
+    maybeShowOfflinePrompt();
   } catch (err) {
     // План Б: сеть недоступна или упёрлись в лимит API NocoDB — используем
     // ЛЮБОЙ кэш, что есть, даже устаревший (старые данные лучше, чем
@@ -2037,15 +2063,44 @@ async function loadCatalog() {
       catalogFullyLoaded = true;
       renderProducts();
       showToast('⚠️ Не удалось обновить каталог — показываем сохранённую версию');
+      maybeShowOfflinePrompt();
     } else {
       throw err;
     }
   }
 }
 
+// Модалка "скачайте офлайн-версию" — не при каждом заходе, а не чаще раза
+// в 24 часа (тот же принцип, что и TTL кэша каталога), чтобы не надоедать
+const OFFLINE_PROMPT_KEY = 'mrmouse_offline_prompt_time';
+const OFFLINE_PROMPT_TTL_MS = 1000 * 60 * 60 * 24; // 24 часа
+
+function maybeShowOfflinePrompt() {
+  try {
+    const last = localStorage.getItem(OFFLINE_PROMPT_KEY);
+    if (last && Date.now() - parseInt(last, 10) < OFFLINE_PROMPT_TTL_MS) {
+      // Модалку уже закрывали недавно — вместо неё оставляем маленькую
+      // постоянную кнопку в шапке, чтобы скачать всё ещё можно было
+      showOfflineMiniBar();
+      return;
+    }
+  } catch (e) { return; }
+  document.getElementById('offlineDownloadModal')?.classList.add('open');
+}
+
+function showOfflineMiniBar() {
+  document.getElementById('offlineMiniBar')?.classList.add('show');
+}
+
+function dismissOfflinePrompt() {
+  document.getElementById('offlineDownloadModal')?.classList.remove('open');
+  try { localStorage.setItem(OFFLINE_PROMPT_KEY, Date.now().toString()); } catch (e) { /* не критично */ }
+  showOfflineMiniBar();
+}
+
 function renderCategories() {
   const el = document.getElementById('categories');
-  const isSpecial = c => c === "🔥 Акции" || c === "⏰ УСПЕЙТЕ!";
+  const isSpecial = c => c === "🔥 Акции" || c === "⏰ УСПЕЙТЕ!" || c === "🆕 NEW";
   el.innerHTML = CATS.map(c => `
     <button class="cat-btn ${isSpecial(c) ? 'cat-btn-special' : ''} ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
   `).join('');
@@ -2239,29 +2294,33 @@ function renderProducts() {
 
   // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
   // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
-  // «🔥 Акции» и «⏰ УСПЕЙТЕ!» — отдельные сквозные разделы: показывают товары
+  // «🔥 Акции», «🆕 NEW» и «⏰ УСПЕЙТЕ!» — отдельные сквозные разделы: показывают товары
   // с нужной пометкой из ЛЮБОЙ категории, сгруппированные по ней же.
   const saleView = !search && activeCategory === "🔥 Акции";
+  const newView = !search && activeCategory === "🆕 NEW";
   const expiringView = !search && activeCategory === "⏰ УСПЕЙТЕ!";
   const cats = search
     ? [...new Set(products.filter(p => normalizeSearch(p.name).includes(search)).map(p => p.cat))]
     : saleView
       ? [...new Set(products.filter(p => p.isSale).map(p => p.cat))]
-      : expiringView
-        ? [...new Set(products.filter(p => p.isExpiringSoon).map(p => p.cat))]
-        : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
+      : newView
+        ? [...new Set(products.filter(p => p.isNew).map(p => p.cat))]
+        : expiringView
+          ? [...new Set(products.filter(p => p.isExpiringSoon).map(p => p.cat))]
+          : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
 
   let html = '';
   let found = 0;
 
   function matchItem(p, cat) {
-    const applySubcat = !search && !saleView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
+    const applySubcat = !search && !saleView && !newView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const matchCat = p.cat === cat;
     const matchSearch = !search || normalizeSearch(p.name).includes(search);
     const matchSubcat = !applySubcat || p.subcat === activeSubcat;
     const matchSale = !saleView || p.isSale;
+    const matchNew = !newView || p.isNew;
     const matchExpiring = !expiringView || p.isExpiringSoon;
-    return matchCat && matchSearch && matchSubcat && matchSale && matchExpiring && passesFilters(p);
+    return matchCat && matchSearch && matchSubcat && matchSale && matchNew && matchExpiring && passesFilters(p);
   }
 
   if (sortMode) {
@@ -2334,8 +2393,9 @@ function renderProductCards(items) {
                 <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
                 <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50" oninput="syncPortionLabel(${p.id},${base})">
                 <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
-                <span class="weight-label">граммы</span>
+                <span class="weight-label">гр.</span>
               </div>
+              <div class="counter-explain">— если нужен особый вес, не ровными кусками</div>
               ${minNote}
             </div>
             <div class="portion-row">
@@ -2344,6 +2404,7 @@ function renderProductCards(items) {
               <button class="portion-btn" onclick="adjustPortions(${p.id},1,${base})">+</button>
               <span class="portion-hint">по ${base}г</span>
             </div>
+            <div class="counter-explain">— если хочется ровные классические куски</div>
           </div>
           <div class="prod-side-actions">
             ${resetBtn}
@@ -2691,7 +2752,7 @@ function renderCart() {
 
   // Группируем по категориям (в том же порядке, что и в каталоге), чтобы
   // корзина не превращалась в кашу из вперемешку добавленных товаров
-  const catOrder = STATIC_CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "⏰ УСПЕЙТЕ!");
+  const catOrder = STATIC_CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "🆕 NEW" && c !== "⏰ УСПЕЙТЕ!");
   const sortedCart = [...cart].sort((a, b) => {
     const ia = catOrder.indexOf(a.product.cat);
     const ib = catOrder.indexOf(b.product.cat);
