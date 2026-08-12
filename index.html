@@ -1335,7 +1335,7 @@ async function resolveWeight(rawWeight, productMinGrams, explicitPieces) {
 
   // Заметно большой вес — сразу спрашиваем количество частей (с полем ввода),
   // а не просто да/нет
-  if (weight > PARTS_THRESHOLD) {
+  if (weight >= PARTS_THRESHOLD) {
     const pieceWeights = await askPartsCount(weight);
     if (!pieceWeights) return null;
     if (pieceWeights.length > 1) {
