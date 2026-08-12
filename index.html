@@ -266,27 +266,43 @@
     white-space: nowrap;
   }
   .prod-action {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 10px;
   }
-  .prod-foot-links {
+  .prod-counters {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 6px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+  .weight-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .prod-side-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
   }
   .prod-reset-btn {
-    background: none;
+    background: var(--light-border);
     border: none;
-    color: var(--gray);
-    font-size: 0.65rem;
+    border-radius: 7px;
+    color: var(--dark);
+    font-size: 0.62rem;
+    font-weight: 600;
     cursor: pointer;
-    padding: 4px 0;
+    padding: 5px 9px;
+    white-space: nowrap;
   }
-  .prod-reset-btn:active { color: #c0392b; }
+  .prod-reset-btn:active { background: #e8b4ac; color: #8a2f22; }
 
   .prod-thumb-col {
     display: flex;
@@ -446,9 +462,9 @@
     outline: none;
   }
   .weight-input:focus { border-color: var(--gold); }
-  .weight-label { font-size: 0.6rem; color: var(--gray); text-align: center; }
-  .weight-min-note { font-size: 0.58rem; color: var(--gray); text-align: center; margin-top: 2px; line-height: 1.3; }
-  .portion-row { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px; }
+  .weight-label { font-size: 0.6rem; color: var(--gray); }
+  .weight-min-note { font-size: 0.58rem; color: var(--gray); line-height: 1.3; text-align: left; }
+  .portion-row { display: flex; align-items: center; justify-content: flex-start; gap: 4px; }
   .portion-btn {
     background: var(--wine);
     color: #fff;
@@ -518,6 +534,7 @@
     font-size: 0.76rem;
     overflow-y: auto;
     overflow-x: hidden;
+    overscroll-behavior: contain;
     flex: 1 1 auto;
     min-height: 0;
     padding-right: 4px;
@@ -593,6 +610,7 @@
   .product-info-body {
     padding: 16px 18px 20px;
     overflow-y: auto;
+    overscroll-behavior: contain;
     flex: 1 1 auto;
     min-height: 0;
   }
@@ -710,7 +728,7 @@
     flex-shrink: 0;
     order: -1;
   }
-  .drawer-body { flex: 1; overflow-y: auto; padding: 12px 20px; }
+  .drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 12px 20px; }
 
   .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--light-border); gap: 10px; }
   .cart-item > div:first-child { min-width: 0; }
@@ -950,6 +968,26 @@
   .no-results { text-align: center; padding: 30px; color: var(--gray); font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
   .loading-state { text-align: center; padding: 50px 20px; color: var(--gray); font-size: 0.85rem; }
 
+  .site-footer {
+    text-align: center;
+    padding: 24px 20px 32px;
+    border-top: 1px solid var(--light-border);
+    margin-top: 20px;
+  }
+  .offline-download-link {
+    display: inline-block;
+    color: var(--wine);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 8px 14px;
+    border: 1.5px solid var(--wine);
+    border-radius: 20px;
+    touch-action: manipulation;
+  }
+  .offline-download-link:active { background: var(--wine); color: #fff; }
+  .offline-download-hint { margin-top: 8px; font-size: 0.65rem; color: var(--gray); }
+
   .search-wrap { padding: 12px 16px 0; position: relative; }
   .search-input {
     width: 100%; padding: 10px 62px 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
@@ -985,6 +1023,7 @@
     box-shadow: var(--shadow);
     max-height: 320px;
     overflow-y: auto;
+    overscroll-behavior: contain;
     z-index: 90;
   }
   .search-suggestions.open { display: block; }
@@ -1118,6 +1157,13 @@
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
 
+<div class="site-footer">
+  <a class="offline-download-link" href="offline.html" download>
+    📥 Скачать офлайн-версию магазина (на случай, если сайт не грузится)
+  </a>
+  <div class="offline-download-hint">Сохраните на телефон заранее — работает без интернета</div>
+</div>
+
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
 <div class="cart-drawer" id="cartDrawer">
   <div class="drawer-handle"></div>
@@ -1208,10 +1254,10 @@
     <div class="field-note" id="recalcNote" style="margin-top:-10px;margin-bottom:12px;"></div>
 
     <div class="send-buttons">
-      <button class="send-btn send-tg" onclick="sendOrder('telegram')">✈️ Telegram</button>
-      <button class="send-btn send-wa" onclick="sendOrder('whatsapp')">💬 WhatsApp</button>
-      <button class="send-btn send-max" onclick="sendOrder('max')">🅼 MAX</button>
-      <button class="send-btn send-copy" onclick="sendOrder('copy')">📋 Скопировать заказ</button>
+      <button class="send-btn send-tg" onclick="sendOrder('telegram')">✈️ заказ в Telegram</button>
+      <button class="send-btn send-wa" onclick="sendOrder('whatsapp')">💬 заказ в WhatsApp</button>
+      <button class="send-btn send-max" onclick="sendOrder('max')">🅼 заказ в MAX</button>
+      <button class="send-btn send-copy" onclick="sendOrder('copy')">📋 Скопировать заказ (вставьте в Авито чат)</button>
     </div>
   </div>
 </div>
@@ -1263,12 +1309,15 @@
 <div class="confirm-overlay" id="longOrderModal">
   <div class="confirm-box">
     <p>
-      ⚠️ Внимание, состав заказа слишком длинный для прямой отправки в Telegram.
-      Текст уже скопирован в ваш буфер обмена — после открытия чата с менеджером
-      просто нажмите и удерживайте поле ввода, выберите «Вставить» и отправьте сообщение.
+      ⚠️ Заказ скопирован в буфер обмена.<br>
+      Чат с менеджером откроется автоматически. Когда откроется Telegram,
+      просто нажмите на поле ввода и выберите «Вставить».
     </p>
     <div class="confirm-actions">
-      <button class="confirm-btn confirm-yes" style="flex:1" id="longOrderOkBtn">Понятно, вставлю сам</button>
+      <button class="confirm-btn confirm-yes" style="flex:1" id="longOrderOkBtn">Понятно, перейти в Telegram</button>
+    </div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-no" style="flex:1" id="longOrderBackBtn">Вернуться в корзину</button>
     </div>
   </div>
 </div>
@@ -1885,28 +1934,113 @@ renderCategories();
 
 let catalogFullyLoaded = false;
 
-async function loadCatalog() {
-  // 1) первая страница — сразу отрисовываем, чтобы сайт не «висел» на пустом экране
-  const first = await fetchPage(0);
-  products = first.page.filter(isAvailable).map(mapRecord);
-  renderProducts();
+// Кэш "сырых" ответов NocoDB в localStorage — резко снижает число запросов
+// к API (мы упёрлись в лимит бесплатного плана NocoDB). Кэшируем именно
+// сырые записи, а не готовый products: срок годности (daysLeft/
+// isExpiringSoon) считается внутри mapRecord от today = new Date() при
+// каждом вызове, поэтому пересчитывать products из кэша на лету — честно
+// и не "замораживает" дату на момент кэширования.
+const CATALOG_CACHE_KEY = 'mrmouse_catalog_raw_v1';
+const CATALOG_CACHE_TIME_KEY = 'mrmouse_catalog_raw_v1_time';
+const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 часа
 
-  if (first.isLast) { catalogFullyLoaded = true; return; }
-
-  // 2) остальное — тихо в фоне. Список товаров (с картинками) перерисовываем
-  // только один раз в конце — иначе телефон заново скачивает уже загруженные
-  // фото и превью «зависают». Вкладки категорий теперь статичные и от этого
-  // не зависят вовсе.
-  let offset = first.page.length;
-  while (true) {
-    const { page, isLast } = await fetchPage(offset);
-    if (!page.length) break;
-    products = products.concat(page.filter(isAvailable).map(mapRecord));
-    offset += page.length;
-    if (isLast || offset > 5000) break;
+function readCatalogCache() {
+  try {
+    const raw = localStorage.getItem(CATALOG_CACHE_KEY);
+    const time = localStorage.getItem(CATALOG_CACHE_TIME_KEY);
+    if (!raw || !time) return null;
+    return { records: JSON.parse(raw), time: parseInt(time, 10) };
+  } catch (e) {
+    // Битый JSON в кэше (редкость, но бывает) — просто игнорируем кэш,
+    // не роняем загрузку каталога из-за этого
+    console.warn('Кэш каталога повреждён, игнорируем:', e);
+    return null;
   }
-  catalogFullyLoaded = true;
-  renderProducts();
+}
+
+function writeCatalogCache(allRawRecords) {
+  try {
+    localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(allRawRecords));
+    localStorage.setItem(CATALOG_CACHE_TIME_KEY, Date.now().toString());
+  } catch (e) {
+    // localStorage может быть переполнен или недоступен (приватный режим
+    // Safari, quota exceeded) — не критично, просто не будет кэша
+    console.warn('Не удалось сохранить кэш каталога:', e);
+  }
+}
+
+// Пересчитывает products из сырых записей "с нуля" — используется и при
+// чтении кэша, и после живой загрузки, чтобы логика была ровно одна
+function applyRawRecords(rawRecords) {
+  products = rawRecords.filter(isAvailable).map(mapRecord);
+}
+
+async function loadCatalog() {
+  // Специальная офлайн-сборка (offline.html) содержит каталог "зашитым"
+  // прямо в файл — window.OFFLINE_SNAPSHOT существует только там (в
+  // обычном index.html этой переменной нет вообще). Если она есть —
+  // используем её и НИКОГДА не обращаемся к NocoDB, даже кэш проверять
+  // не нужно: сама открытая офлайн-версия и есть "кэш", актуальный на
+  // момент её скачивания.
+  if (window.OFFLINE_SNAPSHOT?.records) {
+    applyRawRecords(window.OFFLINE_SNAPSHOT.records);
+    catalogFullyLoaded = true;
+    renderProducts();
+    showToast(`📦 Офлайн-версия каталога от ${window.OFFLINE_SNAPSHOT.generatedAt}`);
+    // Уже открыта офлайн-версия — предлагать скачать её же саму себя не нужно
+    const footer = document.querySelector('.site-footer');
+    if (footer) footer.style.display = 'none';
+    return;
+  }
+
+  const cached = readCatalogCache();
+  const isFresh = cached && (Date.now() - cached.time < CATALOG_CACHE_TTL_MS);
+
+  // Свежий кэш — используем его и вообще не обращаемся к API
+  if (isFresh) {
+    applyRawRecords(cached.records);
+    catalogFullyLoaded = true;
+    renderProducts();
+    return;
+  }
+
+  try {
+    // 1) первая страница — сразу отрисовываем, чтобы сайт не «висел» на пустом экране
+    const first = await fetchPage(0);
+    let allRawRecords = first.page;
+    applyRawRecords(allRawRecords);
+    renderProducts();
+
+    // 2) остальное — тихо в фоне, если есть ещё страницы
+    if (!first.isLast) {
+      let offset = first.page.length;
+      while (true) {
+        const { page, isLast } = await fetchPage(offset);
+        if (!page.length) break;
+        allRawRecords = allRawRecords.concat(page);
+        offset += page.length;
+        if (isLast || offset > 5000) break;
+      }
+    }
+
+    applyRawRecords(allRawRecords);
+    catalogFullyLoaded = true;
+    renderProducts();
+    writeCatalogCache(allRawRecords);
+  } catch (err) {
+    // План Б: сеть недоступна или упёрлись в лимит API NocoDB — используем
+    // ЛЮБОЙ кэш, что есть, даже устаревший (старые данные лучше, чем
+    // сломанный сайт). Совсем без кэша — пробрасываем ошибку дальше, её
+    // ловит обработчик при вызове loadCatalog() и покажет сообщение об ошибке
+    if (cached) {
+      applyRawRecords(cached.records);
+      catalogFullyLoaded = true;
+      renderProducts();
+      showToast('⚠️ Не удалось обновить каталог — показываем сохранённую версию');
+    } else {
+      throw err;
+    }
+  }
 }
 
 function renderCategories() {
@@ -2172,7 +2306,7 @@ function renderProductCards(items) {
       let controlsHtml = '';
       let cartSummaryHtml = '';
       if (!p.inStock) {
-        controlsHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
+        controlsHtml = `<div class="prod-side-actions"><button class="add-btn" disabled title="Нет в наличии">✕</button></div>`;
       } else if (p.weighted) {
         const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
@@ -2190,15 +2324,20 @@ function renderProductCards(items) {
             : `${cartWeight}г${pieces[0]?.note ? ' (' + pieces[0].note + ')' : ''}`;
           cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
         }
+        const resetBtn = inCart
+          ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`
+          : '';
         controlsHtml = `
-          <div>
-            <div class="weight-stepper">
-              <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-              <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50" oninput="syncPortionLabel(${p.id},${base})">
-              <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
+          <div class="prod-counters">
+            <div class="weight-group">
+              <div class="weight-stepper">
+                <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
+                <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50" oninput="syncPortionLabel(${p.id},${base})">
+                <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
+                <span class="weight-label">граммы</span>
+              </div>
+              ${minNote}
             </div>
-            <div class="weight-label">граммы</div>
-            ${minNote}
             <div class="portion-row">
               <button class="portion-btn" onclick="adjustPortions(${p.id},-1,${base})">−</button>
               <span class="portion-count" id="portions${p.id}" data-base="${base}">×1</span>
@@ -2206,21 +2345,29 @@ function renderProductCards(items) {
               <span class="portion-hint">по ${base}г</span>
             </div>
           </div>
-          <button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>
+          <div class="prod-side-actions">
+            ${resetBtn}
+            <button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>
+          </div>
         `;
       } else {
         if (inCart) {
           const sum = p.unitPrice * cartItem.qty;
           cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
           controlsHtml = `
-            <div class="qty-controls">
-              <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-              <span class="qty-num">${cartItem.qty}</span>
-              <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
+            <div class="prod-counters">
+              <div class="qty-controls">
+                <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
+                <span class="qty-num">${cartItem.qty}</span>
+                <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
+              </div>
+            </div>
+            <div class="prod-side-actions">
+              <button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>
             </div>
           `;
         } else {
-          controlsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
+          controlsHtml = `<div class="prod-side-actions"><button class="add-btn" onclick="addFixed(${p.id})">в корзину</button></div>`;
         }
       }
 
@@ -2232,15 +2379,12 @@ function renderProductCards(items) {
           ? `${oldPriceHtml}${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/${priceBaseLabel})</span>`
           : `${oldPriceHtml}${p.unitPrice}₽`;
 
-      const resetBtn = inCart
-        ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`
-        : '';
-
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
           <div class="prod-top-row">
             <div class="prod-thumb-col">
               <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+              <button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>
             </div>
             <div class="prod-info">
               <div class="prod-name">
@@ -2265,10 +2409,6 @@ function renderProductCards(items) {
           <div class="prod-foot">
             ${cartSummaryHtml}
             <div class="prod-action">${controlsHtml}</div>
-            <div class="prod-foot-links">
-              <button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>
-              ${resetBtn}
-            </div>
           </div>
         </div>
       `;
@@ -2426,13 +2566,37 @@ function updateCartCount() {
   sumEl.textContent = total + ' ₽';
 }
 
+// Блокируем скролл фонового слоя (каталога), пока открыта корзина —
+// без этого на iOS Safari скролл иногда "протекает" в слой позади корзины
+// при достижении верха/низа списка внутри неё. overscroll-behavior:contain
+// на .drawer-body уже должен это предотвращать, но на некоторых версиях
+// iOS Safari его одного не хватает — поэтому дублируем честной блокировкой
+// body через position:fixed (стандартный надёжный приём для мобильных).
+let savedScrollY = 0;
+function lockBodyScroll() {
+  savedScrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${savedScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+  document.body.style.width = '100%';
+}
+function unlockBodyScroll() {
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  document.body.style.width = '';
+  window.scrollTo(0, savedScrollY);
+}
+
 function toggleCart() {
   const drawer = document.getElementById('cartDrawer');
   const overlay = document.getElementById('overlay');
   const isOpen = drawer.classList.contains('open');
   drawer.classList.toggle('open', !isOpen);
   overlay.classList.toggle('open', !isOpen);
-  if (!isOpen) renderCart();
+  if (!isOpen) { renderCart(); lockBodyScroll(); } else { unlockBodyScroll(); }
   if (tg?.BackButton) {
     if (!isOpen) { tg.BackButton.show(); tg.BackButton.onClick(toggleCart); }
     else { tg.BackButton.hide(); }
@@ -2765,17 +2929,22 @@ function adjustCdekIcepackQty(delta) {
 }
 
 // Блокирующее предупреждение перед переходом в Telegram, когда заказ
-// слишком длинный для прямой ссылки — ждём явного нажатия "Понятно"
+// слишком длинный для прямой ссылки — ждём явного нажатия одной из двух
+// кнопок. resolve(true) — идём в Telegram, resolve(false) — остаёмся в корзине.
 function showLongOrderNotice() {
   return new Promise(resolve => {
     const modal = document.getElementById('longOrderModal');
-    const btn = document.getElementById('longOrderOkBtn');
+    const okBtn = document.getElementById('longOrderOkBtn');
+    const backBtn = document.getElementById('longOrderBackBtn');
     modal.classList.add('open');
-    btn.onclick = () => {
+    const cleanup = (proceed) => {
       modal.classList.remove('open');
-      btn.onclick = null;
-      resolve();
+      okBtn.onclick = null;
+      backBtn.onclick = null;
+      resolve(proceed);
     };
+    okBtn.onclick = () => cleanup(true);
+    backBtn.onclick = () => cleanup(false);
   });
 }
 
@@ -2916,9 +3085,33 @@ function buildOrderText() {
 
   lines.push('');
 
+  const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge } = computeCartTotals();
+  lines.push(`Подытог: ${subtotal}₽`);
+  if (discount > 0) {
+    lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
+  }
+  if (deliveryCost > 0) {
+    lines.push(`Доставка: ${deliveryCost}₽ (ориентировочно, перерасчёт произойдёт после фактического оформления доставки)`);
+  }
+  if (cdekSurcharge > 0) {
+    lines.push(`Комиссия магазина на отправку заказа суммой <5000₽ тк СДЭК: ${cdekSurcharge}₽`);
+  }
+  lines.push(`Итого: ${total}₽`);
+
   const phone = document.getElementById('phoneInput').value.trim();
   const express = document.getElementById('expressCheck').checked;
   const cash = document.getElementById('cashCheck').checked;
+
+  if (deliveryMethod === 'cdek') {
+    // Отдельным блоком, чтобы не потерялось между суммами и реквизитами —
+    // это не стоимость доставки магазина, а услуги самой ТК СДЭК, которые
+    // покупатель оплачивает отдельно при получении
+    lines.push('___');
+    lines.push('Услуги ТК СДЭК оплачиваются мной самостоятельно при получении. (~500₽)');
+    lines.push('___');
+  } else {
+    lines.push('');
+  }
 
   if (deliveryMethod === 'courier') {
     const address = document.getElementById('addressInput').value.trim();
@@ -2955,20 +3148,6 @@ function buildOrderText() {
     lines.push(`Комментарий: ${comment}`);
   }
 
-  lines.push('');
-  const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge } = computeCartTotals();
-  lines.push(`Подытог: ${subtotal}₽`);
-  if (discount > 0) {
-    lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
-  }
-  if (deliveryCost > 0) {
-    lines.push(`Доставка: ${deliveryCost}₽ (ориентировочно, перерасчёт произойдёт после фактического оформления доставки)`);
-  }
-  if (cdekSurcharge > 0) {
-    lines.push(`Комиссия за отправку СДЭК: ${cdekSurcharge}₽ (заказ ниже 5000₽; это не стоимость доставки, а комиссия магазина за отправку — услуги СДЭК оплачиваются самостоятельно при получении)`);
-  }
-  lines.push(`Итого: ${total}₽`);
-
   return lines.join('\n');
 }
 
@@ -2998,14 +3177,25 @@ function validateOrderFields() {
 }
 
 function copyTextToClipboard(text) {
-  return navigator.clipboard.writeText(text).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-  });
+  // navigator.clipboard существует только в "безопасном контексте" (https).
+  // При открытии офлайн-версии сайта напрямую с диска (file://) браузер
+  // может не дать этот объект вовсе — тогда просто пробуем сразу резервный
+  // способ через execCommand (устаревший, но работает без ограничений)
+  try {
+    if (navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text).catch(() => copyViaExecCommand(text));
+    }
+  } catch (e) { /* падаем в резервный способ ниже */ }
+  return Promise.resolve(copyViaExecCommand(text));
+}
+
+function copyViaExecCommand(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
 }
 
 function sendOrder(channel) {
@@ -3034,7 +3224,8 @@ function sendOrder(channel) {
       // Предупреждаем ДО перехода в мессенджер (не просто тостом, который
       // легко пропустить, пока страница уже переключается на другое приложение)
       copyTextToClipboard(text).then(() => {
-        showLongOrderNotice().then(() => {
+        showLongOrderNotice().then(proceed => {
+          if (!proceed) return; // нажали "вернуться в корзину" — никуда не переходим
           const url = `https://t.me/${CONFIG.TELEGRAM_USERNAME}`;
           if (tg?.openTelegramLink) tg.openTelegramLink(url); else window.open(url, '_blank');
         });
