@@ -448,6 +448,25 @@
     overflow-y: auto;
     padding-right: 4px;
   }
+  .parts-input-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .parts-count-input {
+    width: 64px;
+    padding: 8px;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1.5px solid var(--light-border);
+    border-radius: 8px;
+    font-family: 'Montserrat', sans-serif;
+    outline: none;
+  }
+  .parts-count-input:focus { border-color: var(--gold); }
   .confirm-actions { display: flex; gap: 10px; }
   .confirm-btn {
     flex: 1;
@@ -573,6 +592,17 @@
   .piece-weight-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .piece-price { flex: 1 1 100%; min-width: 0; color: var(--wine); font-weight: 600; white-space: normal; word-break: break-word; order: 3; }
   .piece-remove { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 0.85rem; padding: 0 2px; margin-left: auto; }
+  .piece-split-btn {
+    background: var(--light-border);
+    border: none;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--dark);
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+  }
 
   .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
   .delivery-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--light-border); }
@@ -1025,6 +1055,20 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="partsModal">
+  <div class="confirm-box">
+    <p id="partsModalText"></p>
+    <div class="parts-input-row">
+      <button class="wstep-btn" onclick="document.getElementById('partsCountInput').stepDown(); document.getElementById('partsCountInput').dispatchEvent(new Event('change'))">−</button>
+      <input type="number" id="partsCountInput" min="1" value="1" class="parts-count-input">
+      <button class="wstep-btn" onclick="document.getElementById('partsCountInput').stepUp(); document.getElementById('partsCountInput').dispatchEvent(new Event('change'))">+</button>
+    </div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-yes" style="flex:1" id="partsConfirmBtn">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===================== НАСТРОЙКИ ===================== */
 /* TODO: впишите свой READ-ONLY токен перед публикацией —
@@ -1063,6 +1107,7 @@ if (tg) { tg.ready(); tg.expand(); }
 const MIN_WEIGHT = 300;
 const WEIGHT_STEP = 50;
 const CONFIRM_ABOVE = 600; // выше этого веса спрашиваем "одним куском или на части"
+const PARTS_THRESHOLD = 900; // выше этого веса — сразу спрашиваем количество частей
 
 function roundToStep(w, step = WEIGHT_STEP) {
   return Math.round(w / step) * step;
@@ -1090,12 +1135,54 @@ function askConfirm(message, yesLabel = 'Да', noLabel = 'Нет') {
   });
 }
 
-// Возвращает {weight, note} после проверки минимума/шага/подтверждения,
-// или null если ввод некорректен. Верхнего предела веса нет.
-// productMinGrams — собственный минимум товара из MinQty (например «от 400г»),
-// если он больше общего MIN_WEIGHT. Жёсткий пол всегда MIN_WEIGHT (300г):
-// меньше него не даём в любом случае, а вот между 300 и productMinGrams —
-// разрешаем, но по-дружески предупреждаем.
+// Делит totalWeight на numParts кусков: все, кроме последнего, кратны 300г
+// (округление вниз), а последний забирает остаток — он не обязан быть кратным
+// 300, но всегда получается больше 300г при корректном numParts.
+function splitIntoParts(totalWeight, numParts) {
+  const maxParts = Math.max(1, Math.floor(totalWeight / MIN_WEIGHT));
+  numParts = Math.max(1, Math.min(Math.round(numParts), maxParts));
+  if (numParts <= 1) return [totalWeight];
+  let perPiece = Math.floor(totalWeight / numParts / MIN_WEIGHT) * MIN_WEIGHT;
+  if (perPiece < MIN_WEIGHT) perPiece = MIN_WEIGHT;
+  const remainder = totalWeight - perPiece * numParts;
+  const pieces = new Array(numParts - 1).fill(perPiece);
+  pieces.push(perPiece + remainder);
+  return pieces;
+}
+
+// Модалка с полем ввода "на сколько частей разделить?" — вместо простого
+// да/нет, когда вес заметно большой (> PARTS_THRESHOLD)
+function askPartsCount(weight) {
+  return new Promise(resolve => {
+    const maxParts = Math.max(1, Math.floor(weight / MIN_WEIGHT));
+    const modal = document.getElementById('partsModal');
+    document.getElementById('partsModalText').textContent =
+      `${weight} г — на сколько частей разделить? Кусочки от ${MIN_WEIGHT}г, максимум ${maxParts} шт. Если 1 — отрежем одним куском.`;
+    const input = document.getElementById('partsCountInput');
+    input.value = 1;
+    input.min = 1;
+    input.max = maxParts;
+    modal.classList.add('open');
+    function cleanup(n) {
+      modal.classList.remove('open');
+      confirmBtn.onclick = null;
+      resolve(n === null ? null : splitIntoParts(weight, n));
+    }
+    const confirmBtn = document.getElementById('partsConfirmBtn');
+    confirmBtn.onclick = () => {
+      let n = parseInt(input.value, 10) || 1;
+      n = Math.max(1, Math.min(n, maxParts));
+      cleanup(n);
+    };
+  });
+}
+
+// Возвращает {pieces:[{weight,note}, ...]} после проверки минимума/шага/
+// подтверждения, или null если ввод некорректен/отменён. Верхнего предела
+// веса нет. productMinGrams — собственный минимум товара из MinQty
+// (например «от 400г»), если он больше общего MIN_WEIGHT. Жёсткий пол всегда
+// MIN_WEIGHT (300г): меньше него не даём в любом случае, а вот между 300 и
+// productMinGrams — разрешаем, но по-дружески предупреждаем.
 async function resolveWeight(rawWeight, productMinGrams) {
   if (!rawWeight || rawWeight <= 0) {
     showToast('Введите вес в граммах');
@@ -1115,14 +1202,25 @@ async function resolveWeight(rawWeight, productMinGrams) {
     if (!ok) return null;
     note = `меньше обычного минимума (${productMinGrams}г)`;
   }
-  // Про нарезку спрашиваем только при заметном весе — маленький кусок
-  // (до 600г) в любом случае режется как один кусок, вопрос тут неуместен
+
+  // Заметно большой вес — сразу спрашиваем количество частей (с полем ввода),
+  // а не просто да/нет
+  if (weight > PARTS_THRESHOLD) {
+    const pieceWeights = await askPartsCount(weight);
+    if (!pieceWeights) return null;
+    if (pieceWeights.length > 1) {
+      return { pieces: pieceWeights.map(w => ({ weight: w, note })) };
+    }
+    return { pieces: [{ weight, note }] };
+  }
+  // Про нарезку простым да/нет спрашиваем только при заметном весе — маленький
+  // кусок (до 600г) в любом случае режется как один кусок, вопрос тут неуместен
   if (weight >= CONFIRM_ABOVE) {
     const single = await askConfirm(`${weight} г — как порезать?`, 'Одним куском', 'Разрезать на части');
     const pieceNote = single ? 'одним куском' : 'разрезать на части';
     note = note ? note + '; ' + pieceNote : pieceNote;
   }
-  return { weight, note };
+  return { pieces: [{ weight, note }] };
 }
 
 // Шаг +/- для поля веса в карточке товара (ещё не в корзине)
@@ -1608,11 +1706,20 @@ function hideSuggestions() {
   document.getElementById('searchSuggestions').classList.remove('open');
 }
 
+// Убираем из сравнения всю пунктуацию (скобки, запятые, тире и т.п.) —
+// в названиях товаров иногда встречаются "умные"/нестандартные символы
+// пунктуации (из копипасты в NocoDB), которые визуально совпадают с обычными,
+// но не совпадают побайтово с тем, что печатает клавиатура — из-за этого
+// поиск с такими символами не находил товар. Оставляем только буквы/цифры.
+function normalizeSearch(s) {
+  return (s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // Подсказки под строкой поиска: показываем до 8 лучших совпадений по всему
 // каталогу, сортируя по релевантности — сначала совпадения с начала названия,
 // затем по позиции совпадения внутри строки.
 function renderSuggestions() {
-  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const search = normalizeSearch(document.getElementById('searchInput').value);
   const el = document.getElementById('searchSuggestions');
 
   if (!search || search.length < 2) {
@@ -1622,7 +1729,7 @@ function renderSuggestions() {
   }
 
   const matches = products
-    .map(p => ({ p, idx: p.name.toLowerCase().indexOf(search) }))
+    .map(p => ({ p, idx: normalizeSearch(p.name).indexOf(search) }))
     .filter(m => m.idx !== -1)
     .sort((a, b) => a.idx - b.idx || a.p.name.localeCompare(b.p.name))
     .slice(0, 8);
@@ -1657,7 +1764,7 @@ function esc(s) {
 }
 
 function renderProducts() {
-  const search = document.getElementById('searchInput').value.toLowerCase();
+  const search = normalizeSearch(document.getElementById('searchInput').value);
   const el = document.getElementById('productList');
 
   if (!products.length) {
@@ -1706,7 +1813,7 @@ function renderProducts() {
   const saleView = !search && activeCategory === "🔥 Акции";
   const expiringView = !search && activeCategory === "⏰ УСПЕЙТЕ!";
   const cats = search
-    ? [...new Set(products.filter(p => p.name.toLowerCase().includes(search)).map(p => p.cat))]
+    ? [...new Set(products.filter(p => normalizeSearch(p.name).includes(search)).map(p => p.cat))]
     : saleView
       ? [...new Set(products.filter(p => p.isSale).map(p => p.cat))]
       : expiringView
@@ -1719,7 +1826,7 @@ function renderProducts() {
   function matchItem(p, cat) {
     const applySubcat = !search && !saleView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const matchCat = p.cat === cat;
-    const matchSearch = !search || p.name.toLowerCase().includes(search);
+    const matchSearch = !search || normalizeSearch(p.name).includes(search);
     const matchSubcat = !applySubcat || p.subcat === activeSubcat;
     const matchSale = !saleView || p.isSale;
     const matchExpiring = !expiringView || p.isExpiringSoon;
@@ -1857,16 +1964,15 @@ async function addWeighted(id) {
 
   const result = await resolveWeight(rawWeight, p.minWeightGrams);
   if (!result) return;
-  const { weight, note } = result;
 
-  // Каждое добавление — отдельный «кусок» внутри одной позиции товара
-  // (а не суммирование в один общий вес), чтобы в заказе были видны
-  // реальные отдельные куски разного веса
+  // Каждое добавление — отдельный «кусок» (или несколько, если разделили)
+  // внутри одной позиции товара, а не суммирование в один общий вес —
+  // чтобы в заказе были видны реальные отдельные куски разного веса
   const existing = cart.find(c=>c.product.id===id);
   if (existing) {
-    existing.pieces.push({ weight, note });
+    existing.pieces.push(...result.pieces);
   } else {
-    cart.push({ product: p, pieces: [{ weight, note }], expanded: false });
+    cart.push({ product: p, pieces: [...result.pieces], expanded: result.pieces.length > 1 });
   }
   input.value = '';
   updateCartCount();
@@ -1921,14 +2027,16 @@ function removeFromCart(id) {
   renderProducts();
 }
 
-// Шаг +/- для конкретного куска уже в корзине (по индексу внутри pieces)
+// Шаг +/- для конкретного куска уже в корзине (по индексу внутри pieces).
+// Если в результате перешагнули порог PARTS_THRESHOLD — кусок может
+// раздробиться на несколько (splice заменяет один элемент на N)
 async function stepCartPieceWeight(id, idx, delta) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
   const piece = item.pieces[idx];
   const result = await resolveWeight(piece.weight + delta * WEIGHT_STEP, item.product.minWeightGrams);
   if (!result) { renderCart(); return; }
-  item.pieces[idx] = result;
+  item.pieces.splice(idx, 1, ...result.pieces);
   renderCart();
   renderProducts();
 }
@@ -1938,7 +2046,25 @@ async function updateCartPieceWeight(id, idx, val) {
   if (!item) return;
   const result = await resolveWeight(parseFloat(val), item.product.minWeightGrams);
   if (!result) { renderCart(); return; } // откатываем поле к прежнему значению
-  item.pieces[idx] = result;
+  item.pieces.splice(idx, 1, ...result.pieces);
+  renderCart();
+  renderProducts();
+}
+
+// Явное разделение уже добавленного куска на несколько частей — открывает
+// то же окошко с полем ввода количества частей, доступно прямо в корзине
+async function splitCartPiece(id, idx) {
+  const item = cart.find(c=>c.product.id===id);
+  if (!item) return;
+  const piece = item.pieces[idx];
+  if (piece.weight < MIN_WEIGHT * 2) {
+    showToast('Кусок слишком маленький, чтобы делить дальше');
+    return;
+  }
+  const pieceWeights = await askPartsCount(piece.weight);
+  if (!pieceWeights) return;
+  item.pieces.splice(idx, 1, ...pieceWeights.map(w => ({ weight: w, note: piece.note })));
+  item.expanded = true;
   renderCart();
   renderProducts();
 }
@@ -2088,13 +2214,17 @@ function renderCart() {
         // Один кусок — редактируем прямо тут, без раскрывающегося списка
         const piece = pieces[0] || { weight: 0, note: '' };
         if (piece.note) detailText += ' · ' + piece.note;
+        const splitBtn = piece.weight >= MIN_WEIGHT * 2
+          ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},0)">✂️ Разделить</button>`
+          : '';
         extraHtml = `
-          <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,-1)">−</button>
             <input class="cart-weight-input" type="number" value="${piece.weight||''}" placeholder="от 300г"
               onchange="updateCartPieceWeight(${p.id},0,this.value)" min="300" step="50">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,1)">+</button>
             <span style="font-size:0.65rem;color:var(--gray)">г</span>
+            ${splitBtn}
           </div>
         `;
       } else {
@@ -2116,6 +2246,7 @@ function renderCart() {
                     <span style="font-size:0.62rem;color:var(--gray)">г</span>
                   </div>
                   <span class="piece-price">${Math.round(p.price * pc.weight / 100)}₽${pc.note ? ' · '+esc(pc.note) : ''}</span>
+                  ${pc.weight >= MIN_WEIGHT * 2 ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},${idx})">✂️</button>` : ''}
                   <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
                 </div>
               `).join('')}
