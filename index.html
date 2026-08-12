@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
@@ -80,6 +80,11 @@
     justify-content: center;
     font-size: 0.7rem;
     font-weight: 600;
+  }
+  .cart-header-sum {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gold);
   }
 
   .hero {
@@ -204,6 +209,18 @@
     border-bottom: 1px solid var(--light-border);
     margin-bottom: 4px;
   }
+  .cart-section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gold-light, var(--wine));
+    background: var(--dark);
+    padding: 5px 10px;
+    border-radius: 6px;
+    margin: 12px 0 6px;
+  }
+  .cart-section-title:first-child { margin-top: 0; }
 
   .product-card {
     background: var(--card-bg);
@@ -362,6 +379,23 @@
   .weight-input:focus { border-color: var(--gold); }
   .weight-label { font-size: 0.6rem; color: var(--gray); text-align: center; }
   .weight-min-note { font-size: 0.58rem; color: var(--gray); text-align: center; margin-top: 2px; line-height: 1.3; }
+  .portion-row { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px; }
+  .portion-btn {
+    background: var(--wine);
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .portion-count { font-size: 0.62rem; font-weight: 600; color: var(--dark); min-width: 18px; text-align: center; }
+  .portion-hint { font-size: 0.55rem; color: var(--gray); }
   .weight-min-soft { color: var(--wine); }
 
   .weight-stepper { display: flex; align-items: center; gap: 4px; }
@@ -557,6 +591,7 @@
     text-align: center;
   }
   .method-btn.active { background: var(--dark); border-color: var(--dark); color: var(--gold); }
+  .method-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .field-label { font-size: 0.68rem; color: var(--gray); margin-bottom: 4px; display: block; }
   .field-note { font-size: 0.62rem; color: var(--gray); line-height: 1.4; margin-top: -6px; margin-bottom: 10px; }
@@ -739,6 +774,46 @@
     z-index: 90;
   }
   .search-suggestions.open { display: block; }
+
+  .filters-toggle-row { padding: 8px 16px 0; }
+  .filters-toggle-btn {
+    background: #fff;
+    border: 1.5px solid var(--light-border);
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--dark);
+    cursor: pointer;
+  }
+  .filters-panel {
+    margin: 10px 16px 0;
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
+    border: 1.5px solid var(--light-border);
+  }
+  .filter-block { margin-bottom: 14px; }
+  .filter-block:last-of-type { margin-bottom: 10px; }
+  .filter-range-row { display: flex; gap: 8px; }
+  .filter-range-row .field-input { margin-bottom: 0; }
+  .filter-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 4px; }
+  .filter-check { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--dark); }
+  .filter-check input { width: 14px; height: 14px; accent-color: var(--wine); }
+  .filters-reset-btn {
+    width: 100%;
+    background: var(--light-border);
+    border: none;
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--dark);
+    cursor: pointer;
+  }
+
   .suggestion-item {
     display: flex;
     justify-content: space-between;
@@ -763,6 +838,7 @@
   <button class="cart-btn" onclick="toggleCart()">
     🛒 Корзина
     <span class="cart-count" id="cartCount">0</span>
+    <span class="cart-header-sum" id="cartHeaderSum"></span>
   </button>
 </header>
 
@@ -780,6 +856,48 @@
     <button class="search-go-btn" onclick="filterProducts()" aria-label="Искать">🔍</button>
   </div>
   <div class="search-suggestions" id="searchSuggestions"></div>
+</div>
+
+<div class="filters-toggle-row">
+  <button class="filters-toggle-btn" onclick="toggleFiltersPanel()" id="filtersToggleBtn">⚙️ Фильтры и сортировка</button>
+</div>
+<div class="filters-panel" id="filtersPanel" style="display:none;">
+  <div class="filter-block">
+    <label class="field-label">Сортировка по цене (за кг — честно, вне зависимости от типа товара)</label>
+    <select class="field-select" id="sortSelect" onchange="renderProducts()">
+      <option value="">Без сортировки</option>
+      <option value="asc">Сначала дешёвые</option>
+      <option value="desc">Сначала дорогие</option>
+    </select>
+  </div>
+
+  <div class="filter-block">
+    <label class="field-label">Цена за кг, ₽ (от — до)</label>
+    <div class="filter-range-row">
+      <input class="field-input" type="number" id="priceFromInput" placeholder="от" oninput="renderProducts()">
+      <input class="field-input" type="number" id="priceToInput" placeholder="до" oninput="renderProducts()">
+    </div>
+  </div>
+
+  <div class="filter-block">
+    <label class="field-label">Тип позиции</label>
+    <div class="filter-checks">
+      <label class="filter-check"><input type="checkbox" id="typeWeightCheck" checked onchange="renderProducts()"> Весовые (нарезка под заказ)</label>
+      <label class="filter-check"><input type="checkbox" id="typePieceCheck" checked onchange="renderProducts()"> Штучные заводские упаковки</label>
+    </div>
+  </div>
+
+  <div class="filter-block">
+    <label class="field-label">Страна <label class="filter-check" style="display:inline-flex;margin-left:8px;"><input type="checkbox" id="excludeCountryCheck" onchange="renderProducts()"> исключить выбранные</label></label>
+    <div class="filter-checks" id="countryFilterList"></div>
+  </div>
+
+  <div class="filter-block">
+    <label class="field-label">Выдержка</label>
+    <div class="filter-checks" id="agingFilterList"></div>
+  </div>
+
+  <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
 </div>
 
 <div class="categories" id="categories"></div>
@@ -1015,6 +1133,28 @@ function stepProductWeight(id, delta) {
   else v = v + delta * WEIGHT_STEP;
   if (v < 0) v = 0;
   input.value = v || '';
+  syncPortionLabel(id);
+}
+
+// Быстрое добавление целыми "порциями" базового веса (напр. ×300г, ×2×300г...)
+function adjustPortions(id, delta, base) {
+  const input = document.getElementById('w' + id);
+  const current = parseFloat(input.value) || 0;
+  const portions = Math.max(1, Math.round(current / base) + delta);
+  input.value = portions * base;
+  const label = document.getElementById('portions' + id);
+  if (label) label.textContent = '×' + portions;
+}
+
+// Держим счётчик "×N" в синхроне, если человек вручную поправил граммы
+function syncPortionLabel(id) {
+  const label = document.getElementById('portions' + id);
+  if (!label) return;
+  const b = parseInt(label.dataset.base, 10) || 300;
+  const input = document.getElementById('w' + id);
+  const v = parseFloat(input.value) || 0;
+  const portions = v > 0 ? Math.max(1, Math.round(v / b)) : 1;
+  label.textContent = '×' + portions;
 }
 
 let products = [];
@@ -1102,25 +1242,31 @@ function countryFlag(country) {
   return "🧀";
 }
 
-// "2026-12-18 00:00:00" -> "18.12.2026"; пустое или "-" -> null
-function formatBestBefore(raw) {
+// Разбирает дату из BestBefore в двух форматах: "2026-12-18 00:00:00" (старый)
+// и "18.12.2026" (новый, ГГГГ через точки). Возвращает {y, m, d} или null.
+function parseBestBeforeParts(raw) {
   if (!raw) return null;
   const s = raw.toString().trim();
   if (!s || s === "-") return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  return `${m[3]}.${m[2]}.${m[1]}`;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); // ГГГГ-ММ-ДД
+  if (m) return { y: m[1], m: m[2], d: m[3] };
+  m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})/); // ДД.ММ.ГГГГ
+  if (m) return { y: m[3], m: m[2], d: m[1] };
+  return null;
+}
+
+// -> "18.12.2026" для отображения на карточке
+function formatBestBefore(raw) {
+  const p = parseBestBeforeParts(raw);
+  return p ? `${p.d}.${p.m}.${p.y}` : null;
 }
 
 // Сколько дней осталось до даты BestBefore, сверяя с реальной датой на устройстве.
 // null, если дата не указана/не распознана.
 function daysUntil(raw) {
-  if (!raw) return null;
-  const s = raw.toString().trim();
-  if (!s || s === "-") return null;
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) return null;
-  const expiry = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const p = parseBestBeforeParts(raw);
+  if (!p) return null;
+  const expiry = new Date(Number(p.y), Number(p.m) - 1, Number(p.d));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Math.round((expiry - today) / 86400000);
@@ -1266,6 +1412,19 @@ function mapRecord(rec) {
   // Хамон/прошутто и т.п. с плавающим весом — целый кусок, который не режут
   // под заказ, а просто взвешивают и пересчитывают цену — помечаем плашкой
   const notCut = isWholeItemMeat && priceMode === 'approxPiece';
+
+  // "Справедливая" цена за кг — чтобы сортировка/фильтр по цене сравнивали
+  // товары честно вне зависимости от того, весовые они, штучные или approxPiece
+  let pricePerKg = null;
+  if (priceMode === 'weight') {
+    pricePerKg = Math.round(price * 10);
+  } else if (priceMode === 'approxPiece') {
+    pricePerKg = priceBaseGrams === 1000 ? Math.round(price) : Math.round(price * 10);
+  } else {
+    // flat: пытаемся понять вес упаковки из названия/MinQty для пересчёта
+    const anyWeight = parseApproxWeightGrams(rawName) || parseApproxWeightGrams(minQtyText) || (isMigrated ? minQtyNum : null);
+    pricePerKg = anyWeight ? Math.round(unitPrice / anyWeight * 1000) : null;
+  }
   // Технические позиции (аккумулятор холода и т.п.) — не участвуют в скидках
   // по промокоду, это не товар, а вспомогательный элемент упаковки
   const isTechnical = /аккумулятор холода|хладоэлемент|аккум\.?\s*холода/i.test(rawName);
@@ -1287,6 +1446,8 @@ function mapRecord(rec) {
     isSale,
     isLowStock,
     notCut,
+    pricePerKg,
+    rawCountry: (rec.Country || "").toString().trim() || null,
     isTechnical,
     fat, aging, milk, bestBefore, daysLeft, isExpiringSoon,
     oldPrice, oldUnitPrice,
@@ -1386,6 +1547,10 @@ function setSubcat(sub) {
 function setCategory(cat) {
   activeCategory = cat;
   activeSubcat = isCheeseCategory(cat) ? CHEESE_SUBCAT_ORDER[0] : null;
+  const searchInput = document.getElementById('searchInput');
+  searchInput.value = '';
+  document.getElementById('searchClearBtn').classList.remove('show');
+  hideSuggestions();
   renderCategories();
   renderProducts();
 }
@@ -1401,6 +1566,42 @@ function clearSearch() {
   input.value = '';
   input.focus();
   filterProducts();
+}
+
+let filtersPanelBuilt = false;
+
+function toggleFiltersPanel() {
+  const panel = document.getElementById('filtersPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) buildFilterLists();
+}
+
+// Списки стран и выдержек собираем из уже загруженного каталога (пересобираем
+// при каждом открытии панели — каталог может ещё догружаться в фоне)
+function buildFilterLists() {
+  if (!products.length) return;
+
+  const countries = [...new Set(products.map(p => p.rawCountry).filter(Boolean))].sort();
+  document.getElementById('countryFilterList').innerHTML = countries.map(c => `
+    <label class="filter-check"><input type="checkbox" class="country-check" value="${esc(c)}" onchange="renderProducts()"> ${esc(c)}</label>
+  `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
+
+  const agings = [...new Set(products.map(p => p.aging).filter(Boolean))].sort();
+  document.getElementById('agingFilterList').innerHTML = agings.map(a => `
+    <label class="filter-check"><input type="checkbox" class="aging-check" value="${esc(a)}" onchange="renderProducts()"> ${esc(a)}</label>
+  `).join('') || '<span class="field-note" style="margin:0;">Нет данных</span>';
+}
+
+function resetFilters() {
+  document.getElementById('sortSelect').value = '';
+  document.getElementById('priceFromInput').value = '';
+  document.getElementById('priceToInput').value = '';
+  document.getElementById('typeWeightCheck').checked = true;
+  document.getElementById('typePieceCheck').checked = true;
+  document.getElementById('excludeCountryCheck').checked = false;
+  document.querySelectorAll('.country-check, .aging-check').forEach(el => el.checked = false);
+  renderProducts();
 }
 
 function hideSuggestions() {
@@ -1464,6 +1665,40 @@ function renderProducts() {
     return;
   }
 
+  // ---- Фильтры (панель "Фильтры и сортировка") ----
+  const sortMode = document.getElementById('sortSelect')?.value || '';
+  const priceFrom = parseFloat(document.getElementById('priceFromInput')?.value);
+  const priceTo = parseFloat(document.getElementById('priceToInput')?.value);
+  const typeWeightOn = document.getElementById('typeWeightCheck')?.checked ?? true;
+  const typePieceOn = document.getElementById('typePieceCheck')?.checked ?? true;
+  const excludeCountries = document.getElementById('excludeCountryCheck')?.checked;
+  const selectedCountries = [...document.querySelectorAll('.country-check:checked')].map(el => el.value);
+  const selectedAgings = [...document.querySelectorAll('.aging-check:checked')].map(el => el.value);
+
+  function passesFilters(p) {
+    // Тип: весовые (режем под заказ) vs штучные заводские (flat/approxPiece)
+    const isWeightType = p.priceMode === 'weight';
+    if (isWeightType && !typeWeightOn) return false;
+    if (!isWeightType && !typePieceOn) return false;
+
+    // Цена за кг — честная, вне зависимости от типа товара. Товары без
+    // определённого веса (pricePerKg === null) не отсекаем по диапазону,
+    // чтобы не прятать их из-за невозможности пересчёта.
+    if (!isNaN(priceFrom) && p.pricePerKg !== null && p.pricePerKg < priceFrom) return false;
+    if (!isNaN(priceTo) && p.pricePerKg !== null && p.pricePerKg > priceTo) return false;
+
+    if (selectedCountries.length) {
+      const has = p.rawCountry && selectedCountries.includes(p.rawCountry);
+      if (excludeCountries ? has : !has) return false;
+    }
+
+    if (selectedAgings.length) {
+      if (!p.aging || !selectedAgings.includes(p.aging)) return false;
+    }
+
+    return true;
+  }
+
   // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
   // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
   // «🔥 Акции» и «⏰ УСПЕЙТЕ!» — отдельные сквозные разделы: показывают товары
@@ -1481,20 +1716,51 @@ function renderProducts() {
   let html = '';
   let found = 0;
 
-  for (const cat of cats) {
+  function matchItem(p, cat) {
     const applySubcat = !search && !saleView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
-    const items = products.filter(p => {
-      const matchCat = p.cat === cat;
-      const matchSearch = !search || p.name.toLowerCase().includes(search);
-      const matchSubcat = !applySubcat || p.subcat === activeSubcat;
-      const matchSale = !saleView || p.isSale;
-      const matchExpiring = !expiringView || p.isExpiringSoon;
-      return matchCat && matchSearch && matchSubcat && matchSale && matchExpiring;
-    });
-    if (!items.length) continue;
-    found += items.length;
+    const matchCat = p.cat === cat;
+    const matchSearch = !search || p.name.toLowerCase().includes(search);
+    const matchSubcat = !applySubcat || p.subcat === activeSubcat;
+    const matchSale = !saleView || p.isSale;
+    const matchExpiring = !expiringView || p.isExpiringSoon;
+    return matchCat && matchSearch && matchSubcat && matchSale && matchExpiring && passesFilters(p);
+  }
 
-    html += `<div class="section-title">${esc(cat)}</div>`;
+  if (sortMode) {
+    // При активной сортировке по цене группировку по категориям убираем —
+    // показываем один общий список, отсортированный по честной цене за кг.
+    // Товары без определимого веса (pricePerKg === null) уходят в конец списка.
+    let items = [];
+    for (const cat of cats) items = items.concat(products.filter(p => matchItem(p, cat)));
+    items.sort((a, b) => {
+      if (a.pricePerKg === null && b.pricePerKg === null) return 0;
+      if (a.pricePerKg === null) return 1;
+      if (b.pricePerKg === null) return -1;
+      return sortMode === 'asc' ? a.pricePerKg - b.pricePerKg : b.pricePerKg - a.pricePerKg;
+    });
+    found = items.length;
+    if (items.length) html += renderProductCards(items);
+  } else {
+    for (const cat of cats) {
+      const items = products.filter(p => matchItem(p, cat));
+      if (!items.length) continue;
+      found += items.length;
+      html += `<div class="section-title">${esc(cat)}</div>`;
+      html += renderProductCards(items);
+    }
+  }
+
+  if (!found) {
+    html = catalogFullyLoaded
+      ? `<div class="no-results">Ничего не найдено 🧀</div>`
+      : `<div class="no-results">Загрузка ⏳</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function renderProductCards(items) {
+    let html = '';
     for (const p of items) {
       const cartItem = cart.find(c=>c.product.id===p.id);
       const inCart = !!cartItem;
@@ -1503,6 +1769,7 @@ function renderProducts() {
       if (!p.inStock) {
         actionHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
       } else if (p.weighted) {
+        const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
           ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft">(можем и ${MIN_WEIGHT}г 🙂)</span></div>`
           : '';
@@ -1515,11 +1782,17 @@ function renderProducts() {
           <div>
             <div class="weight-stepper">
               <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-              <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50">
+              <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50" oninput="syncPortionLabel(${p.id},${base})">
               <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
             </div>
             <div class="weight-label">граммы</div>
             ${minNote}
+            <div class="portion-row">
+              <button class="portion-btn" onclick="adjustPortions(${p.id},-1,${base})">−</button>
+              <span class="portion-count" id="portions${p.id}" data-base="${base}">×1</span>
+              <button class="portion-btn" onclick="adjustPortions(${p.id},1,${base})">+</button>
+              <span class="portion-hint">по ${base}г</span>
+            </div>
           </div>
           <button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>
           ${cartTotal}
@@ -1573,15 +1846,7 @@ function renderProducts() {
         </div>
       `;
     }
-  }
-
-  if (!found) {
-    html = catalogFullyLoaded
-      ? `<div class="no-results">Ничего не найдено 🧀</div>`
-      : `<div class="no-results">Загрузка ⏳</div>`;
-  }
-
-  el.innerHTML = html;
+    return html;
 }
 
 async function addWeighted(id) {
@@ -1697,6 +1962,10 @@ function toggleCartExpand(id) {
 
 function updateCartCount() {
   document.getElementById('cartCount').textContent = cart.length;
+  const sumEl = document.getElementById('cartHeaderSum');
+  if (!cart.length) { sumEl.textContent = ''; return; }
+  const { total } = computeCartTotals();
+  sumEl.textContent = total + ' ₽';
 }
 
 function toggleCart() {
@@ -1776,6 +2045,7 @@ function computeCartTotals() {
 
 function renderCart() {
   const body = document.getElementById('cartBody');
+  updateCartCount();
 
   if (!cart.length) {
     body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
@@ -1787,8 +2057,22 @@ function renderCart() {
   let total = 0;
   let html = '';
 
-  for (const item of cart) {
+  // Группируем по категориям (в том же порядке, что и в каталоге), чтобы
+  // корзина не превращалась в кашу из вперемешку добавленных товаров
+  const catOrder = STATIC_CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "⏰ УСПЕЙТЕ!");
+  const sortedCart = [...cart].sort((a, b) => {
+    const ia = catOrder.indexOf(a.product.cat);
+    const ib = catOrder.indexOf(b.product.cat);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  let lastCat = null;
+  for (const item of sortedCart) {
     const p = item.product;
+    if (p.cat !== lastCat) {
+      html += `<div class="cart-section-title">${esc(p.cat)}</div>`;
+      lastCat = p.cat;
+    }
     let linePrice = null;
     let detailText = '';
     let extraHtml = '';
@@ -1930,6 +2214,8 @@ function setDeliveryMethod(method) {
   addressInput.disabled = !isCourier;
   timeSelect.disabled = !isCourier;
   expressCheck.disabled = !isCourier;
+  document.getElementById('dateTypeBtn-today').disabled = !isCourier;
+  document.getElementById('dateTypeBtn-other').disabled = !isCourier;
   // СДЭК — тоже только по предоплате, как и срочная доставка
   cashCheck.disabled = expressCheck.checked || method === 'cdek';
   if (cashCheck.disabled) cashCheck.checked = false;
