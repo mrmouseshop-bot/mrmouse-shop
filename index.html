@@ -419,7 +419,7 @@
   }
   .portion-count { font-size: 0.62rem; font-weight: 600; color: var(--dark); min-width: 18px; text-align: center; }
   .portion-hint { font-size: 0.55rem; color: var(--gray); }
-  .weight-min-soft { color: var(--wine); }
+  .weight-min-soft { color: var(--wine); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
   .weight-stepper { display: flex; align-items: center; gap: 4px; }
   .wstep-btn {
@@ -1397,6 +1397,16 @@ function syncPortionLabel(id) {
   label.textContent = '×' + portions;
 }
 
+// Клик по подсказке "можем и 300г" — сразу подставляет минимальный вес
+// в поле ввода, чтобы покупателю не пришлось стирать/вписывать вручную
+function setMinWeight(id) {
+  const input = document.getElementById('w' + id);
+  if (!input) return;
+  input.value = MIN_WEIGHT;
+  input.dataset.viaPortions = 'false';
+  syncPortionLabel(id);
+}
+
 let products = [];
 // Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
 // ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
@@ -2022,7 +2032,7 @@ function renderProductCards(items) {
       } else if (p.weighted) {
         const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
-          ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft">(можем и ${MIN_WEIGHT}г 🙂)</span></div>`
+          ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft" onclick="setMinWeight(${p.id})">(можем и ${MIN_WEIGHT}г — нажмите здесь 👆)</span></div>`
           : '';
         const cartWeight = inCart ? (cartItem.pieces||[]).reduce((s,pc)=>s+pc.weight,0) : 0;
         const cartPieceCount = inCart ? (cartItem.pieces||[]).length : 0;
