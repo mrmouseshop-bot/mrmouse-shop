@@ -82,27 +82,38 @@ def fetch_all_records():
 
 
 def best_photo_url(photo_field):
-    """Берём самую лёгкую доступную ссылку: сначала готовое превью NocoDB,
-    потом полноразмерное фото."""
+    """Берём полноразмерный оригинал — важно для правильного вписывания в
+    квадрат без обрезки. Готовые превью NocoDB (thumbnails.tiny/small/
+    card_cover) генерируются самой NocoDB методом "cover" и обрезают
+    неквадратные фото по центру ещё до того, как файл попадёт к нам —
+    это уже необратимо на нашей стороне, поэтому используем их только как
+    запасной вариант, если оригинала нет вообще."""
     if not photo_field:
         return None
     f = photo_field[0]
     th = f.get("thumbnails") or {}
     return (
-        (th.get("tiny") or {}).get("signedUrl")
+        f.get("signedUrl")
+        or f.get("url")
         or (th.get("small") or {}).get("signedUrl")
         or (th.get("card_cover") or {}).get("signedUrl")
-        or f.get("signedUrl")
-        or f.get("url")
+        or (th.get("tiny") or {}).get("signedUrl")
     )
 
 
 def make_data_uri(url):
     resp = request_with_retry(url, timeout=20)
     img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+    # thumbnail() уменьшает с сохранением пропорций и НЕ обрезает — но для
+    # неквадратного фото результат тоже останется неквадратным (напр. 72x54).
+    # Кладём его по центру на белый квадратный холст THUMB_SIZE x THUMB_SIZE —
+    # так весь товар остаётся видимым, а не обрезанным по бокам/сверху/снизу
     img.thumbnail((THUMB_SIZE, THUMB_SIZE))
+    canvas = Image.new("RGB", (THUMB_SIZE, THUMB_SIZE), (255, 255, 255))
+    offset = ((THUMB_SIZE - img.width) // 2, (THUMB_SIZE - img.height) // 2)
+    canvas.paste(img, offset)
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+    canvas.save(buf, format="JPEG", quality=JPEG_QUALITY, optimize=True)
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/jpeg;base64,{b64}"
 

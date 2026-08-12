@@ -21,6 +21,7 @@
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  button { touch-action: manipulation; }
 
   body {
     background: var(--cream);
@@ -241,14 +242,41 @@
     gap: 12px;
   }
 
+  .prod-foot {
+    padding-top: 8px;
+    border-top: 1px solid var(--light-border);
+  }
+  .prod-cart-summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: var(--dark);
+    background: #f7f3ea;
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .prod-cart-summary-price {
+    font-weight: 700;
+    color: var(--wine);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
   .prod-action {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--light-border);
+  }
+  .prod-foot-links {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
   }
   .prod-reset-btn {
     background: none;
@@ -256,10 +284,28 @@
     color: var(--gray);
     font-size: 0.65rem;
     cursor: pointer;
-    margin-right: auto;
     padding: 4px 0;
   }
   .prod-reset-btn:active { color: #c0392b; }
+
+  .prod-thumb-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .prod-info-btn {
+    background: none;
+    border: none;
+    color: var(--wine);
+    font-size: 0.6rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    padding: 2px 0;
+    touch-action: manipulation;
+  }
 
   .prod-thumb {
     width: 52px; height: 52px; flex-shrink: 0;
@@ -270,7 +316,7 @@
     align-items: center;
     justify-content: center;
   }
-  .prod-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .prod-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .thumb-placeholder { font-size: 1.3rem; }
 
   .prod-info { flex: 1; min-width: 0; }
@@ -502,6 +548,69 @@
     flex-shrink: 0;
   }
   .cdek-icepack-qty.show { display: flex; }
+
+  .product-info-box {
+    width: 92vw;
+    max-width: 420px;
+    max-height: 88vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    text-align: left;
+    position: relative;
+  }
+  .product-info-close {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: rgba(28,23,18,0.55);
+    color: #fff;
+    border: none;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  .product-info-photo-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: var(--light-border) center/cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .product-info-photo-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .product-info-photo-wrap .thumb-placeholder { font-size: 2.4rem; }
+  .product-info-body {
+    padding: 16px 18px 20px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .product-info-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.15rem;
+    color: var(--dark);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  .product-info-desc {
+    font-size: 0.82rem;
+    color: var(--dark);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .product-info-desc.empty { color: var(--gray); font-style: italic; }
   .parts-input-row {
     display: flex;
     align-items: center;
@@ -1090,6 +1199,8 @@
     <div class="field-note" id="promoStatusNote" style="margin:4px 0 10px;"></div>
 
     <div class="discount-row" id="discountRow" style="display:none;"></div>
+    <div class="discount-row" id="cdekSurchargeRow" style="display:none;"></div>
+    <div class="field-note" id="cdekSurchargeNote" style="margin-bottom:10px;"></div>
     <div class="total-row">
       <span class="total-label">Итого</span>
       <span class="total-sum" id="totalSum">0 ₽</span>
@@ -1172,6 +1283,17 @@
     </div>
     <div class="confirm-actions">
       <button class="confirm-btn confirm-yes" style="flex:1" id="partsConfirmBtn">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="productInfoModal">
+  <div class="confirm-box product-info-box">
+    <button class="product-info-close" onclick="closeProductInfo()">✕</button>
+    <div class="product-info-photo-wrap" id="productInfoPhotoWrap"></div>
+    <div class="product-info-body">
+      <div class="product-info-name" id="productInfoName"></div>
+      <div class="product-info-desc" id="productInfoDesc"></div>
     </div>
   </div>
 </div>
@@ -1448,7 +1570,7 @@ function handleImgError(img) {
     img.dataset.fallbacks = parts.join(',');
     img.src = next;
   } else {
-    const holder = img.closest('.prod-thumb');
+    const holder = img.closest('.prod-thumb, .product-info-photo-wrap');
     if (holder) holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
   }
 }
@@ -1463,22 +1585,31 @@ function handleImgError(img) {
 // Полноразмерные фото (часто прямо с камеры телефона, по несколько мегабайт)
 // прогоняем через бесплатный прокси-сервис wsrv.nl — он на лету сжимает и
 // уменьшает картинку под нужный размер, отдавая лёгкую версию.
+// fit=contain (не cover!) — фото вписывается в квадрат целиком, без обрезки
+// краёв; для неквадратных исходников получаются небольшие белые поля (bg),
+// а не обрезанные бока/верх/низ товара — совпадает с логикой build_photos.py
 function resizedViaProxy(url, size = 80, quality = 55) {
   if (!url) return null;
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${size}&h=${size}&fit=cover&q=${quality}&output=jpg`;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${size}&h=${size}&fit=contain&a=center&bg=ffffff&q=${quality}&output=jpg`;
 }
 
 function photoCandidates(rec) {
   const f = rec.Photo?.[0];
   const th = f?.thumbnails || {};
   const baked = window.PHOTO_CACHE?.[String(rec.Id)];
+  // Порядок важен: baked (photos.js) и наш прокси (contain, без обрезки)
+  // стоят раньше готовых превью NocoDB (thumbnails.tiny/small/card_cover) —
+  // те генерируются самой NocoDB методом "cover" и обрезают неквадратные
+  // фото по центру; мы не можем на это повлиять на стороне NocoDB, поэтому
+  // используем их только как последний резервный вариант, если прокси
+  // недоступен (например, нет интернета до wsrv.nl)
   const list = [
     baked,
+    resizedViaProxy(f?.signedUrl),
+    resizedViaProxy(f?.url),
     th.tiny?.signedUrl,
     th.small?.signedUrl,
     th.card_cover?.signedUrl,
-    resizedViaProxy(f?.signedUrl),
-    resizedViaProxy(f?.url),
     f?.signedUrl,
     f?.url,
   ].filter(Boolean);
@@ -1693,6 +1824,13 @@ function mapRecord(rec) {
   // "Успейте!" — до срока годности осталось меньше 31 дня (но ещё не истёк)
   const isExpiringSoon = daysLeft !== null && daysLeft >= 0 && daysLeft < 31;
 
+  // Полноразмерное фото и текстовое описание — подтягиваются только при
+  // открытии окошка "Описание" на карточке, не используются в обычном
+  // рендере списка (там всегда только миниатюра из photoList/photo)
+  const fullPhotoRaw = rec.Photo?.[0];
+  const fullPhoto = fullPhotoRaw?.signedUrl || fullPhotoRaw?.url || null;
+  const description = (rec.Description || rec['Описание'] || rec['Описание товара'] || '').toString().trim() || null;
+
   return {
     id: idCounter++,
     name: rawName || "Без названия",
@@ -1720,6 +1858,8 @@ function mapRecord(rec) {
     weighted: priceMode === 'weight', // алиас для обратной совместимости
     photoList,
     photo: photoList[0] || null,
+    fullPhoto,
+    description,
   };
 }
 
@@ -2029,20 +2169,28 @@ function renderProductCards(items) {
       const cartItem = cart.find(c=>c.product.id===p.id);
       const inCart = !!cartItem;
 
-      let actionHtml = '';
+      let controlsHtml = '';
+      let cartSummaryHtml = '';
       if (!p.inStock) {
-        actionHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
+        controlsHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
       } else if (p.weighted) {
         const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
           ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft" onclick="setMinWeight(${p.id})">(можем и ${MIN_WEIGHT}г — нажмите здесь 👆)</span></div>`
           : '';
-        const cartWeight = inCart ? (cartItem.pieces||[]).reduce((s,pc)=>s+pc.weight,0) : 0;
-        const cartPieceCount = inCart ? (cartItem.pieces||[]).length : 0;
-        const cartTotal = inCart && cartWeight
-          ? `<div class="line-total">В корзине: ${cartWeight}г${cartPieceCount>1?' ('+cartPieceCount+' шт.)':''} = ${Math.round(p.price * cartWeight / 100)}₽</div>`
-          : '';
-        actionHtml = `
+        const pieces = inCart ? (cartItem.pieces || []) : [];
+        const cartWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
+        // Несколько кусков разного веса, добавленных по очереди — показываем
+        // подробную раскладку (как в корзине), а не просто суммарный вес,
+        // иначе не видно, как именно покупатель успел их разбить
+        if (inCart && cartWeight) {
+          const sum = Math.round(p.price * cartWeight / 100);
+          const breakdown = pieces.length > 1
+            ? `${formatPiecesBreakdown(pieces)} — итого ${cartWeight}г`
+            : `${cartWeight}г${pieces[0]?.note ? ' (' + pieces[0].note + ')' : ''}`;
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+        }
+        controlsHtml = `
           <div>
             <div class="weight-stepper">
               <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
@@ -2059,20 +2207,20 @@ function renderProductCards(items) {
             </div>
           </div>
           <button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>
-          ${cartTotal}
         `;
       } else {
         if (inCart) {
-          actionHtml = `
+          const sum = p.unitPrice * cartItem.qty;
+          cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          controlsHtml = `
             <div class="qty-controls">
               <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
               <span class="qty-num">${cartItem.qty}</span>
               <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
             </div>
-            <div class="line-total">${p.unitPrice * cartItem.qty}₽</div>
           `;
         } else {
-          actionHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
+          controlsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         }
       }
 
@@ -2091,7 +2239,9 @@ function renderProductCards(items) {
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
           <div class="prod-top-row">
-            <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+            <div class="prod-thumb-col">
+              <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+            </div>
             <div class="prod-info">
               <div class="prod-name">
                 ${esc(p.name)}
@@ -2112,7 +2262,14 @@ function renderProductCards(items) {
               ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
             </div>
           </div>
-          <div class="prod-action">${actionHtml}${resetBtn}</div>
+          <div class="prod-foot">
+            ${cartSummaryHtml}
+            <div class="prod-action">${controlsHtml}</div>
+            <div class="prod-foot-links">
+              <button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>
+              ${resetBtn}
+            </div>
+          </div>
         </div>
       `;
     }
@@ -2340,8 +2497,12 @@ function computeCartTotals() {
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
   const delivery = computeDeliveryCost();
-  const total = subtotal - discount + delivery.cost;
-  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryNote: delivery.note };
+  const CDEK_SURCHARGE_THRESHOLD = 5000;
+  const CDEK_SURCHARGE = 250;
+  const netGoods = subtotal - discount;
+  const cdekSurcharge = (deliveryMethod === 'cdek' && netGoods < CDEK_SURCHARGE_THRESHOLD) ? CDEK_SURCHARGE : 0;
+  const total = netGoods + delivery.cost + cdekSurcharge;
+  return { subtotal, discount, total, percent, promoRaw, deliveryCost: delivery.cost, deliveryNote: delivery.note, cdekSurcharge };
 }
 
 function renderCart() {
@@ -2354,6 +2515,10 @@ function renderCart() {
     document.getElementById('totalSumTop').textContent = '0 ₽';
     const recalcNoteEmpty = document.getElementById('recalcNote');
     if (recalcNoteEmpty) recalcNoteEmpty.textContent = '';
+    const cdekSurchargeRowEmpty = document.getElementById('cdekSurchargeRow');
+    if (cdekSurchargeRowEmpty) cdekSurchargeRowEmpty.style.display = 'none';
+    const cdekSurchargeNoteEmpty = document.getElementById('cdekSurchargeNote');
+    if (cdekSurchargeNoteEmpty) cdekSurchargeNoteEmpty.textContent = '';
     return;
   }
 
@@ -2486,13 +2651,24 @@ function renderCart() {
 
   body.innerHTML = html;
 
-  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryNote } = computeCartTotals();
+  const { subtotal, discount, total: finalTotal, percent, deliveryCost, deliveryNote, cdekSurcharge } = computeCartTotals();
   const discountRow = document.getElementById('discountRow');
   if (discount > 0) {
     discountRow.style.display = 'flex';
     discountRow.innerHTML = `<span>Скидка по промокоду (−${percent}%)</span><span>−${discount} ₽</span>`;
   } else {
     discountRow.style.display = 'none';
+  }
+
+  const cdekSurchargeRow = document.getElementById('cdekSurchargeRow');
+  const cdekSurchargeNote = document.getElementById('cdekSurchargeNote');
+  if (cdekSurcharge > 0) {
+    cdekSurchargeRow.style.display = 'flex';
+    cdekSurchargeRow.innerHTML = `<span>Комиссия за отправку СДЭК</span><span>+${cdekSurcharge} ₽</span>`;
+    cdekSurchargeNote.textContent = 'При заказе на СДЭК суммой ниже 5000₽ действует комиссия нашего магазина за отправку (это не стоимость доставки, а комиссия магазина). Услуги транспортной компании СДЭК покупатель оплачивает самостоятельно при получении заказа.';
+  } else {
+    cdekSurchargeRow.style.display = 'none';
+    cdekSurchargeNote.textContent = '';
   }
 
   const deliveryCostNote = document.getElementById('deliveryCostNote');
@@ -2780,13 +2956,16 @@ function buildOrderText() {
   }
 
   lines.push('');
-  const { subtotal, discount, total, percent, promoRaw, deliveryCost } = computeCartTotals();
+  const { subtotal, discount, total, percent, promoRaw, deliveryCost, cdekSurcharge } = computeCartTotals();
   lines.push(`Подытог: ${subtotal}₽`);
   if (discount > 0) {
     lines.push(`Промокод: ${promoRaw} (−${percent}%) = −${discount}₽`);
   }
   if (deliveryCost > 0) {
     lines.push(`Доставка: ${deliveryCost}₽ (ориентировочно, перерасчёт произойдёт после фактического оформления доставки)`);
+  }
+  if (cdekSurcharge > 0) {
+    lines.push(`Комиссия за отправку СДЭК: ${cdekSurcharge}₽ (заказ ниже 5000₽; это не стоимость доставки, а комиссия магазина за отправку — услуги СДЭК оплачиваются самостоятельно при получении)`);
   }
   lines.push(`Итого: ${total}₽`);
 
@@ -2898,17 +3077,74 @@ function showToast(msg) {
 }
 
 // iOS Safari игнорирует user-scalable=no в meta viewport — блокируем
-// масштабирование жестами вручную: щипок двумя пальцами и двойной тап
+// масштабирование жестами вручную: щипок двумя пальцами и двойной тап.
+// Safari также умеет зумить через нестандартные gesturestart/gesturechange —
+// их тоже глушим, иначе именно они иногда "прошмыгивают" в обход touchmove.
+document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+document.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+document.addEventListener('gestureend', function (e) { e.preventDefault(); });
+
 document.addEventListener('touchmove', function (e) {
   if (e.touches.length > 1) e.preventDefault();
 }, { passive: false });
 
 let lastTouchEnd = 0;
 document.addEventListener('touchend', function (e) {
+  // Двойной тап по кнопке/полю ввода — это осознанное быстрое повторное
+  // нажатие (например, дважды по «+» на степпере веса), а не попытка
+  // зумить жестом. Если гасить его тут же, как двойной тап, второе
+  // нажатие иногда "не долетает" до клика — эффект залипания/задержки.
+  // Поэтому не трогаем touchend на самих интерактивных элементах.
+  const isInteractive = e.target.closest('button, input, a, select, textarea');
   const now = Date.now();
-  if (now - lastTouchEnd <= 350) e.preventDefault();
+  if (!isInteractive && now - lastTouchEnd <= 350) e.preventDefault();
   lastTouchEnd = now;
 }, { passive: false });
+
+// Подстраховка: если масштаб всё же где-то проскочил (нестандартные жесты,
+// баги конкретных версий iOS Safari), автоматически возвращаем его к 1x —
+// иначе, как жаловались, обратно уменьшить вручную почти невозможно из-за
+// того же запрета на масштабирование
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', function () {
+    if (window.visualViewport.scale > 1.02) {
+      const viewportMeta = document.querySelector('meta[name="viewport"]');
+      const original = viewportMeta.getAttribute('content');
+      // Переустановка content форсирует Safari пересчитать зум и сбросить его к 1x
+      viewportMeta.setAttribute('content', original + ', shrink-to-fit=no');
+      setTimeout(() => viewportMeta.setAttribute('content', original), 50);
+    }
+  });
+}
+
+// Модалка "Описание" — открывается по кнопке под миниатюрой на карточке.
+// Фото в полном качестве (fullPhoto) подставляется в <img> только в этот
+// момент — до этого браузер его не загружает, каталог им не нагружается
+function openProductInfo(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('productInfoName').textContent = p.name;
+  const desc = document.getElementById('productInfoDesc');
+  if (p.description) {
+    desc.textContent = p.description;
+    desc.classList.remove('empty');
+  } else {
+    desc.textContent = 'Описание пока не добавлено';
+    desc.classList.add('empty');
+  }
+  const photoWrap = document.getElementById('productInfoPhotoWrap');
+  const src = p.fullPhoto || p.photo;
+  photoWrap.innerHTML = src
+    ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${(p.photoList || []).map(encodeURIComponent).join(',')}">`
+    : '<span class="thumb-placeholder">🧀</span>';
+  document.getElementById('productInfoModal').classList.add('open');
+}
+function closeProductInfo() {
+  document.getElementById('productInfoModal').classList.remove('open');
+  // Очищаем src сразу после закрытия, чтобы полноразмерное фото не висело
+  // в памяти/DOM зря — при следующем открытии оно подставится заново
+  document.getElementById('productInfoPhotoWrap').innerHTML = '';
+}
 
 // Кнопка «Лифт вверх» — появляется после прокрутки вниз, скроллит к началу
 // каталога (к категориям), не перекрывая карточки товаров
