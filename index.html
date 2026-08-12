@@ -819,7 +819,7 @@
   .scroll-top-btn {
     position: fixed;
     right: 14px;
-    bottom: 18px;
+    bottom: 90px;
     z-index: 150;
     background: var(--dark);
     color: var(--gold);
@@ -1091,7 +1091,7 @@
       <span class="total-label">Итого</span>
       <span class="total-sum" id="totalSum">0 ₽</span>
     </div>
-    <div class="field-note" style="margin-top:-10px;margin-bottom:12px;">Итоговая стоимость может быть уточнена после нарезки и взвешивания весовых позиций</div>
+    <div class="field-note" id="recalcNote" style="margin-top:-10px;margin-bottom:12px;"></div>
 
     <div class="send-buttons">
       <button class="send-btn send-tg" onclick="sendOrder('telegram')">✈️ Telegram</button>
@@ -1210,8 +1210,7 @@ if (tg) { tg.ready(); tg.expand(); }
 // ---- Правила заказа на развес: минимум 300г, шаг 50г (вес не ограничен сверху) ----
 const MIN_WEIGHT = 300;
 const WEIGHT_STEP = 50;
-const CONFIRM_ABOVE = 600; // выше этого веса спрашиваем "одним куском или на части"
-const PARTS_THRESHOLD = 900; // выше этого веса — сразу спрашиваем количество частей
+const PARTS_THRESHOLD = 600; // от этого веса — спрашиваем количество частей (окошко с числовым полем и точным максимумом)
 
 function roundToStep(w, step = WEIGHT_STEP) {
   return Math.round(w / step) * step;
@@ -1284,8 +1283,8 @@ function splitIntoParts(totalWeight, numParts) {
   return pieces;
 }
 
-// Модалка с полем ввода "на сколько частей разделить?" — вместо простого
-// да/нет, когда вес заметно большой (> PARTS_THRESHOLD)
+// Модалка с полем ввода "на сколько частей разделить?" — показывается
+// при весе >= PARTS_THRESHOLD, с честным максимумом кусков
 function askPartsCount(weight) {
   return new Promise(resolve => {
     const maxParts = Math.max(1, Math.floor(weight / MIN_WEIGHT));
@@ -1343,21 +1342,19 @@ async function resolveWeight(rawWeight, productMinGrams, explicitPieces) {
     return { pieces: explicitPieces.map(w => ({ weight: w, note })) };
   }
 
-  // Заметно большой вес — сразу спрашиваем количество частей (с полем ввода),
-  // а не просто да/нет
+  // Заметно большой вес — спрашиваем точное количество частей (с полем ввода
+  // и честным максимумом), а не размытое да/нет. Маленький вес (до
+  // PARTS_THRESHOLD) в любом случае режется как один кусок, вопрос тут неуместен
   if (weight >= PARTS_THRESHOLD) {
     const pieceWeights = await askPartsCount(weight);
     if (!pieceWeights) return null;
     if (pieceWeights.length > 1) {
       return { pieces: pieceWeights.map(w => ({ weight: w, note })) };
     }
-    return { pieces: [{ weight, note }] };
-  }
-  // Про нарезку простым да/нет спрашиваем только при заметном весе — маленький
-  // кусок (до 600г) в любом случае режется как один кусок, вопрос тут неуместен
-  if (weight >= CONFIRM_ABOVE) {
-    const single = await askConfirm(`${weight} г — как порезать?`, 'Одним куском', 'Разрезать на части');
-    const pieceNote = single ? 'одним куском' : 'разрезать на части';
+    // Пользователь явно выбрал "1" в окошке — это такой же осознанный ответ
+    // на "как порезать", как и "несколько частей", поэтому фиксируем это
+    // пометкой, а не оставляем голый вес без пояснения
+    const pieceNote = 'одним куском';
     note = note ? note + '; ' + pieceNote : pieceNote;
   }
   return { pieces: [{ weight, note }] };
@@ -2342,6 +2339,8 @@ function renderCart() {
     body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
     document.getElementById('totalSum').textContent = '0 ₽';
     document.getElementById('totalSumTop').textContent = '0 ₽';
+    const recalcNoteEmpty = document.getElementById('recalcNote');
+    if (recalcNoteEmpty) recalcNoteEmpty.textContent = '';
     return;
   }
 
@@ -2485,6 +2484,20 @@ function renderCart() {
 
   const deliveryCostNote = document.getElementById('deliveryCostNote');
   if (deliveryCostNote) deliveryCostNote.textContent = deliveryMethod === 'courier' ? deliveryNote : '';
+
+  const hasWeighted = cart.some(item => item.product.priceMode === 'weight');
+  let recalcText = '';
+  if (deliveryMethod === 'pickup') {
+    if (hasWeighted) recalcText = 'Перерасчёт стоимости будет произведён менеджером после взвешивания.';
+  } else if (deliveryMethod === 'courier') {
+    recalcText = hasWeighted
+      ? 'Перерасчёт стоимости будет произведён менеджером после взвешивания и оформления доставки.'
+      : 'Перерасчёт стоимости будет произведён менеджером после оформления доставки.';
+  } else if (deliveryMethod === 'cdek') {
+    if (hasWeighted) recalcText = 'Перерасчёт стоимости будет произведён менеджером после взвешивания.';
+  }
+  const recalcNote = document.getElementById('recalcNote');
+  if (recalcNote) recalcNote.textContent = recalcText;
 
   document.getElementById('totalSum').textContent = finalTotal + ' ₽';
   document.getElementById('totalSumTop').textContent = finalTotal + ' ₽';
