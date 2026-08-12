@@ -1266,11 +1266,21 @@ function splitIntoParts(totalWeight, numParts) {
   const maxParts = Math.max(1, Math.floor(totalWeight / MIN_WEIGHT));
   numParts = Math.max(1, Math.min(Math.round(numParts), maxParts));
   if (numParts <= 1) return [totalWeight];
-  let perPiece = Math.floor(totalWeight / numParts / MIN_WEIGHT) * MIN_WEIGHT;
+  // Делим поровну (округляя до шага 50г), а не обязательно кратно 300 —
+  // клиент вполне может попросить, например, 900г пополам по 450г каждый
+  let perPiece = roundToStep(totalWeight / numParts);
   if (perPiece < MIN_WEIGHT) perPiece = MIN_WEIGHT;
-  const remainder = totalWeight - perPiece * numParts;
+  // Подстраховка: если из-за округления последний (переменный) кусок
+  // просел ниже минимума — уменьшаем размер обычных кусков на шаг
+  let last = totalWeight - perPiece * (numParts - 1);
+  let guard = 0;
+  while (last < MIN_WEIGHT && perPiece > MIN_WEIGHT && guard < 20) {
+    perPiece -= WEIGHT_STEP;
+    last = totalWeight - perPiece * (numParts - 1);
+    guard++;
+  }
   const pieces = new Array(numParts - 1).fill(perPiece);
-  pieces.push(perPiece + remainder);
+  pieces.push(last);
   return pieces;
 }
 
