@@ -1,4 +1,4 @@
-name: Обновить кэш миниатюр
+name: Обновить кэш миниатюр и полноразмерных фото
 
 on:
   schedule:
@@ -22,7 +22,7 @@ jobs:
       - name: Установить зависимости
         run: pip install requests pillow
 
-      - name: Собрать photos.js
+      - name: Собрать photos.js и папку photos/
         run: python build_photos.py
         env:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
@@ -30,8 +30,8 @@ jobs:
       - name: Подтянуть свежие изменения (на случай правок во время сборки)
         run: git pull --rebase --autostash origin main
 
-      - name: Закоммитить обновлённый файл
+      - name: Закоммитить обновлённые файлы
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: 'Автообновление кэша миниатюр'
-          file_pattern: photos.js
+          commit_message: 'Автообновление кэша миниатюр и полноразмерных фото'
+          file_pattern: 'photos.js photos/'
