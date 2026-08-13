@@ -341,7 +341,7 @@
   .prod-thumb {
     width: 52px; height: 52px; flex-shrink: 0;
     border-radius: 8px;
-    background: var(--light-border) center/cover no-repeat;
+    background: #fff center/cover no-repeat;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -378,6 +378,7 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--wine);
+    text-align: right;
   }
   .old-price {
     text-decoration: line-through;
@@ -614,7 +615,7 @@
   .product-info-photo-wrap {
     width: 100%;
     aspect-ratio: 1 / 1;
-    background: var(--light-border) center/cover no-repeat;
+    background: #fff center/cover no-repeat;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1084,6 +1085,19 @@
     cursor: pointer;
   }
 
+  .offline-snapshot-banner {
+    display: none;
+    background: #fff3cd;
+    color: #7a5c00;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    text-align: center;
+    padding: 8px 16px;
+    border-bottom: 1px solid #e8d68a;
+  }
+  .offline-snapshot-banner.show { display: block; }
+  .offline-snapshot-banner a { color: #7a5c00; font-weight: 700; }
+
   .suggestion-item {
     display: flex;
     justify-content: space-between;
@@ -1173,6 +1187,8 @@
   <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
 </div>
 
+<div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
+
 <div class="categories" id="categories"></div>
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
@@ -1182,6 +1198,7 @@
     <div class="offline-modal-icon">📥</div>
     <p><b>Сохраните офлайн-версию магазина</b></p>
     <p style="font-size:0.72rem;color:var(--gray);">Пригодится, если сайт вдруг не загрузится — каталог, корзина и заказ через мессенджер работают даже без интернета.</p>
+    <p style="font-size:0.62rem;color:var(--gray);font-style:italic;">После скачивания открывайте файл через «Файлы» → «Загрузки» на телефоне — не по этой же ссылке, она без интернета не откроется.</p>
     <div class="confirm-actions offline-modal-actions">
       <a class="offline-download-link" href="offline.html" download onclick="dismissOfflinePrompt()">Скачать</a>
       <button class="confirm-btn confirm-no" onclick="dismissOfflinePrompt()">Не сейчас</button>
@@ -1282,7 +1299,7 @@
       <button class="send-btn send-tg" onclick="sendOrder('telegram')">✈️ заказ в Telegram</button>
       <button class="send-btn send-wa" onclick="sendOrder('whatsapp')">💬 заказ в WhatsApp</button>
       <button class="send-btn send-max" onclick="sendOrder('max')">🅼 заказ в MAX</button>
-      <button class="send-btn send-copy" onclick="sendOrder('copy')">📋 Скопировать заказ (вставьте в Авито чат)</button>
+      <button class="send-btn send-copy" onclick="sendOrder('copy')">📋 Скопировать заказ</button>
     </div>
   </div>
 </div>
@@ -2012,7 +2029,18 @@ async function loadCatalog() {
     applyRawRecords(window.OFFLINE_SNAPSHOT.records);
     catalogFullyLoaded = true;
     renderProducts();
-    showToast(`📦 Офлайн-версия каталога от ${window.OFFLINE_SNAPSHOT.generatedAt}`);
+    // Постоянный (не пропадающий, в отличие от toast) баннер — офлайн-файл
+    // скачан один раз и сам никогда не обновится, пока его не скачают
+    // заново. Явно показываем дату снимка на видном месте всё время,
+    // чтобы человек не путал эти цены/наличие с актуальными на сайте.
+    const banner = document.getElementById('offlineSnapshotBanner');
+    if (banner) {
+      banner.innerHTML = `📦 Офлайн-снимок каталога от ${window.OFFLINE_SNAPSHOT.generatedAt}. ` +
+        `Цены и наличие могут отличаться от текущих. Если есть интернет — откройте ` +
+        `<a href="https://mrmouseshop-bot.github.io/mrmouseshop/" target="_blank" rel="noopener">живой сайт</a> ` +
+        `для актуальных данных или скачайте свежую офлайн-версию заново.`;
+      banner.classList.add('show');
+    }
     // Уже открыта офлайн-версия — предлагать скачать её же саму себя не нужно
     return;
   }
@@ -2659,6 +2687,11 @@ function toggleCart() {
   overlay.classList.toggle('open', !isOpen);
   if (!isOpen) { renderCart(); lockBodyScroll(); } else { unlockBodyScroll(); }
   if (tg?.BackButton) {
+    // Снимаем предыдущий обработчик перед тем, как повесить новый — иначе
+    // при каждом открытии корзины они накапливаются, и один тап по "Назад"
+    // в Telegram вызовет toggleCart несколько раз подряд подряд, путая
+    // состояние блокировки скролла фона
+    tg.BackButton.offClick?.(toggleCart);
     if (!isOpen) { tg.BackButton.show(); tg.BackButton.onClick(toggleCart); }
     else { tg.BackButton.hide(); }
   }
@@ -3341,6 +3374,8 @@ document.addEventListener('touchmove', function (e) {
 }, { passive: false });
 
 let lastTouchEnd = 0;
+let lastTouchX = 0;
+let lastTouchY = 0;
 document.addEventListener('touchend', function (e) {
   // Двойной тап по кнопке/полю ввода — это осознанное быстрое повторное
   // нажатие (например, дважды по «+» на степпере веса), а не попытка
@@ -3349,8 +3384,19 @@ document.addEventListener('touchend', function (e) {
   // Поэтому не трогаем touchend на самих интерактивных элементах.
   const isInteractive = e.target.closest('button, input, a, select, textarea');
   const now = Date.now();
-  if (!isInteractive && now - lastTouchEnd <= 350) e.preventDefault();
+  const touch = e.changedTouches[0];
+  const x = touch ? touch.clientX : 0;
+  const y = touch ? touch.clientY : 0;
+  // Настоящий двойной тап — это два касания примерно в ОДНОМ месте и быстро
+  // друг за другом. Концы двух быстрых свайпов подряд (например, при
+  // пролистывании длинной корзины) тоже укладываются в эти же 350мс, но
+  // происходят в РАЗНЫХ точках экрана — раньше это ошибочно гасилось как
+  // двойной тап и иногда "подвешивало" реакцию на дальнейшие свайпы в Safari.
+  const isDoubleTap = now - lastTouchEnd <= 350 && Math.abs(x - lastTouchX) < 30 && Math.abs(y - lastTouchY) < 30;
+  if (!isInteractive && isDoubleTap) e.preventDefault();
   lastTouchEnd = now;
+  lastTouchX = x;
+  lastTouchY = y;
 }, { passive: false });
 
 // Подстраховка: если масштаб всё же где-то проскочил (нестандартные жесты,
