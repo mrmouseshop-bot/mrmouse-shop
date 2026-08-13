@@ -114,7 +114,13 @@ def main():
         print("  photos.js не найден — офлайн-версия будет без встроенных миниатюр", file=sys.stderr)
 
     generated_at = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
-    snapshot_json = json.dumps(records, ensure_ascii=False)
+    snapshot_obj = {"records": records, "generatedAt": generated_at}
+    snapshot_json = json.dumps(snapshot_obj, ensure_ascii=False)
+    # Защита: если в названии/описании товара вдруg встретится буквальная
+    # последовательность "</script" — браузерный HTML-парсер закроет тег
+    # раньше времени и обрежет весь дальнейший JSON. \/ — валидный экранированный
+    # слэш в JSON, JSON.parse превратит его обратно в обычный "/"
+    snapshot_json = re.sub(r"</(script)", r"<\\/\1", snapshot_json, flags=re.IGNORECASE)
 
     # 1) Инлиним photos.js прямо в файл вместо внешней ссылки на него —
     # офлайн-версия должна быть одним самодостаточным файлом
@@ -129,10 +135,15 @@ def main():
 
     # 2) Добавляем снепшот каталога сразу за инлайненным photos.js —
     # loadCatalog() в index.html уже умеет проверять window.OFFLINE_SNAPSHOT
-    # и, если он есть, использовать его без единого обращения к NocoDB
+    # и, если он есть, использовать его без единого обращения к NocoDB.
+    # Данные лежат в <script type="application/json"> (браузер воспринимает
+    # это как обычный текст, не разбирая как JavaScript) и превращаются в
+    # объект через JSON.parse — это заметно быстрее и легче для движка, чем
+    # разбор эквивалентного "сырого" JS-объекта такого размера.
     snapshot_tag = (
+        f'<script type="application/json" id="offline-snapshot-json">{snapshot_json}</script>\n'
         f"<script>window.OFFLINE_SNAPSHOT = "
-        f'{{records: {snapshot_json}, generatedAt: "{generated_at}"}};</script>'
+        f"JSON.parse(document.getElementById('offline-snapshot-json').textContent);</script>"
     )
     html = html.replace(new_photos_tag, new_photos_tag + "\n" + snapshot_tag, 1)
 
