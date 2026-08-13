@@ -34,4 +34,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: 'Автообновление кэша миниатюр и полноразмерных фото'
-          file_pattern: 'photos.js photos/'
+          file_pattern: 'photos.js photos/ index.html'
