@@ -1660,8 +1660,38 @@ function handleImgError(img) {
     const next = decodeURIComponent(parts.shift());
     img.dataset.fallbacks = parts.join(',');
     img.src = next;
+  } else if (img.closest('.product-info-photo-wrap') && img.dataset.recId && !img.dataset.triedLive) {
+    // Все обычные фолбэки исчерпаны — последний шанс: кэшированная в
+    // браузере signedUrl могла протухнуть (NocoDB ограничивает её жизнь
+    // ~2-3 часами, а каталог у нас кэшируется на 24). Делаем ОДИН точечный
+    // живой запрос именно за этот товар (не за весь каталог) — и только
+    // сейчас, когда всё остальное реально не сработало, а не при каждом
+    // открытии "Описания" на всякий случай — так не тратим лимит API зря.
+    img.dataset.triedLive = '1';
+    fetchFreshPhotoAndRetry(img, img.dataset.recId);
   } else {
     const holder = img.closest('.prod-thumb, .product-info-photo-wrap');
+    if (holder) holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
+  }
+}
+
+async function fetchFreshPhotoAndRetry(img, recId) {
+  try {
+    const resp = await fetch(`${CONFIG.NOCODB_URL}/api/v2/tables/${CONFIG.TABLE_ID}/records/${recId}`, {
+      headers: { "xc-token": CONFIG.NOCODB_TOKEN }
+    });
+    if (!resp.ok) throw new Error('bad response');
+    const rec = await resp.json();
+    const f = rec.Photo?.[0];
+    const freshUrl = f?.signedUrl || f?.url;
+    if (!freshUrl) throw new Error('no url');
+    // Освежаем и в памяти, чтобы при следующем открытии этого товара сразу
+    // подставлялась уже рабочая ссылка, без повторного протухания на лету
+    const p = products.find(x => String(x.recId) === String(recId));
+    if (p) p.fullPhoto = freshUrl;
+    img.src = freshUrl; // если и это не сработает — handleImgError сработает ещё раз, но triedLive уже стоит, уйдёт в плейсхолдер
+  } catch (e) {
+    const holder = img.closest('.product-info-photo-wrap');
     if (holder) holder.innerHTML = '<span class="thumb-placeholder">🧀</span>';
   }
 }
@@ -1919,11 +1949,18 @@ function mapRecord(rec) {
   // открытии окошка "Описание" на карточке, не используются в обычном
   // рендере списка (там всегда только миниатюра из photoList/photo)
   const fullPhotoRaw = rec.Photo?.[0];
-  const fullPhoto = fullPhotoRaw?.signedUrl || fullPhotoRaw?.url || null;
+  const fullPhotoFallback = fullPhotoRaw?.signedUrl || fullPhotoRaw?.url || null;
+  // Свой файл (собирается раз в сутки build_photos.py, живёт на GitHub Pages,
+  // никогда не протухает) — в приоритете. Подписанная ссылка NocoDB (та
+  // истекает через ~2 часа) остаётся только запасным вариантом в цепочке
+  // фолбэков — на случай совсем нового товара, который ещё не успел
+  // попасть в ближайшую ночную сборку.
+  const fullPhoto = fullPhotoFallback ? `photos/${rec.Id}.jpg` : null;
   const description = (rec.Description || rec['Описание'] || rec['Описание товара'] || '').toString().trim() || null;
 
   return {
     id: idCounter++,
+    recId: rec.Id,
     name: rawName || "Без названия",
     cat: cleanCat,
     subcat,
@@ -1950,6 +1987,7 @@ function mapRecord(rec) {
     photoList,
     photo: photoList[0] || null,
     fullPhoto,
+    fullPhotoFallback,
     description,
   };
 }
@@ -3431,12 +3469,17 @@ function openProductInfo(id) {
     desc.classList.add('empty');
   }
   const photoWrap = document.getElementById('productInfoPhotoWrap');
-  const src = p.fullPhoto || p.photo;
+  const src = p.fullPhoto || p.fullPhotoFallback || p.photo;
+  const fallbacks = [
+    ...(p.fullPhoto && p.fullPhotoFallback ? [p.fullPhotoFallback] : []),
+    ...(p.photoList || []),
+  ];
   photoWrap.innerHTML = src
-    ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${(p.photoList || []).map(encodeURIComponent).join(',')}">`
+    ? `<img src="${src}" alt="" onerror="handleImgError(this)" data-fallbacks="${fallbacks.map(encodeURIComponent).join(',')}" data-rec-id="${p.recId || ''}">`
     : '<span class="thumb-placeholder">🧀</span>';
   document.getElementById('productInfoModal').classList.add('open');
 }
+
 function closeProductInfo() {
   document.getElementById('productInfoModal').classList.remove('open');
   // Очищаем src сразу после закрытия, чтобы полноразмерное фото не висело
