@@ -254,7 +254,7 @@
   .prod-top-row {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
+    gap: 14px;
   }
 
   .prod-foot {
@@ -339,8 +339,8 @@
   }
 
   .prod-thumb {
-    width: 52px; height: 52px; flex-shrink: 0;
-    border-radius: 8px;
+    width: 92px; height: 92px; flex-shrink: 0;
+    border-radius: 10px;
     background: #fff center/cover no-repeat;
     overflow: hidden;
     display: flex;
@@ -348,7 +348,7 @@
     justify-content: center;
   }
   .prod-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
-  .thumb-placeholder { font-size: 1.3rem; }
+  .thumb-placeholder { font-size: 2rem; }
 
   .prod-info { flex: 1; min-width: 0; }
 
@@ -2510,7 +2510,7 @@ function renderProductCards(items) {
         <div class="product-card ${!p.inStock?'out-of-stock':''}">
           <div class="prod-top-row">
             <div class="prod-thumb-col">
-              <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="52" height="52" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+              <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="92" height="92" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
               <button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>
             </div>
             <div class="prod-info">
