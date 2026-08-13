@@ -20,11 +20,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-      
-          python -m pip install --upgrade pip
-          pip install requests Pillow
+      - name: Установить зависимости
+        run: pip install requests Pillow
 
       - name: Собрать offline.html
         run: python build_offline_snapshot.py
