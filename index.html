@@ -2679,7 +2679,15 @@ async function splitCartPiece(id, idx) {
   }
   const pieceWeights = await askPartsCount(piece.weight);
   if (!pieceWeights) return;
-  item.pieces.splice(idx, 1, ...pieceWeights.map(w => ({ weight: w, note: piece.note })));
+  // "одним куском" имеет смысл только пока кусок реально один — при
+  // разделении на 2+ части эта пометка больше не актуальна и не должна
+  // тянуться на каждый новый кусок (иначе они не сольются в общую группу
+  // с уже существующими такими же кусками без этой пометки в корзине)
+  const baseNote = (piece.note || '').replace(/одним куском/i, '').replace(/(^;\s*)|(;\s*$)/g, '').trim();
+  const newPieces = pieceWeights.length > 1
+    ? pieceWeights.map(w => ({ weight: w, note: baseNote }))
+    : [{ weight: pieceWeights[0], note: baseNote ? baseNote + '; одним куском' : 'одним куском' }];
+  item.pieces.splice(idx, 1, ...newPieces);
   item.expanded = true;
   renderCart();
   renderProducts();
