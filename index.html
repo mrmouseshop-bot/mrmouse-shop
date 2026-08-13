@@ -2528,7 +2528,7 @@ function renderProductCards(items) {
           <div class="prod-top-row">
             <div class="prod-thumb-col">
               <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="92" height="92" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
-              <button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>
+              ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
             </div>
             <div class="prod-info">
               <div class="prod-name">${esc(p.name)}</div>
