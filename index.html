@@ -358,7 +358,14 @@
     font-weight: 600;
     color: var(--dark);
     line-height: 1.3;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
+  }
+  .prod-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 6px;
   }
 
   .prod-meta {
@@ -402,8 +409,6 @@
     letter-spacing: 0.08em;
     padding: 2px 6px;
     border-radius: 4px;
-    margin-left: 6px;
-    vertical-align: middle;
     text-transform: uppercase;
   }
   .badge-sale {
@@ -415,8 +420,6 @@
     letter-spacing: 0.08em;
     padding: 2px 6px;
     border-radius: 4px;
-    margin-left: 6px;
-    vertical-align: middle;
     text-transform: uppercase;
   }
   .badge-notcut {
@@ -428,8 +431,6 @@
     letter-spacing: 0.02em;
     padding: 2px 6px;
     border-radius: 4px;
-    margin-left: 6px;
-    vertical-align: middle;
   }
   .badge-expiring {
     display: inline-block;
@@ -440,8 +441,6 @@
     letter-spacing: 0.02em;
     padding: 2px 6px;
     border-radius: 4px;
-    margin-left: 6px;
-    vertical-align: middle;
   }
 
   .add-btn {
@@ -2053,7 +2052,10 @@ function writeCatalogCache(allRawRecords) {
 // Пересчитывает products из сырых записей "с нуля" — используется и при
 // чтении кэша, и после живой загрузки, чтобы логика была ровно одна
 function applyRawRecords(rawRecords) {
-  products = rawRecords.filter(isAvailable).map(mapRecord);
+  // Подстраховка: пустые/незаполненные строки в NocoDB (без названия) не
+  // должны попадать на витрину, даже если по ошибке помечены "в наличии"
+  const withName = rawRecords.filter(rec => (rec.Name || '').toString().trim());
+  products = withName.filter(isAvailable).map(mapRecord);
 }
 
 async function loadCatalog() {
@@ -2514,13 +2516,13 @@ function renderProductCards(items) {
               <button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>
             </div>
             <div class="prod-info">
-              <div class="prod-name">
-                ${esc(p.name)}
+              <div class="prod-name">${esc(p.name)}</div>
+              ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon) ? `<div class="prod-badges">
                 ${p.isNew ? '<span class="badge-new">new</span>' : ''}
                 ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
                 ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
                 ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
-              </div>
+              </div>` : ''}
               <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
               ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
                 p.fat && `Жирность ${esc(p.fat)}`,

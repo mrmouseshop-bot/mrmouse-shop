@@ -24,9 +24,11 @@
 """
 
 import base64
+import hashlib
 import io
 import json
 import os
+import re
 import sys
 import time
 
@@ -39,9 +41,10 @@ TOKEN = os.environ.get("NOCODB_TOKEN", "")
 
 # Размер и качество миниатюры — подобраны так, чтобы весить по паре килобайт
 # на фото (сумма на ~900 товаров укладывается в единицы мегабайт).
-THUMB_SIZE = 130      # пикселей по большей стороне (карточка на сайте теперь
-                       # 92x92, берём с запасом для чёткости на retina-экранах)
-JPEG_QUALITY = 60
+THUMB_SIZE = 190      # пикселей по большей стороне (карточка на сайте — 92x92
+                       # CSS-пикселей; берём с запасом для retina-экранов,
+                       # где 1 CSS-пиксель = 2-3 физических)
+JPEG_QUALITY = 68
 
 # Полноразмерное фото для окна "Описание" — крупнее миниатюры, но не
 # оригинал "как есть" (те бывают по несколько МБ с телефона) — сжимаем до
@@ -56,6 +59,7 @@ MAX_RETRIES = 6
 
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "photos.js")
 FULL_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "photos")
+INDEX_FILE = os.path.join(os.path.dirname(__file__), "index.html")
 
 
 def request_with_retry(url, **kwargs):
@@ -201,6 +205,35 @@ def main():
     print(f"Готово: {len(cache)} фото, пропущено с ошибкой: {errors}")
     print(f"  photos.js (миниатюры): {size_kb:.0f} КБ")
     print(f"  photos/ (полноразмерные): {len(current_ids_with_photo)} файлов, {full_size_mb:.1f} МБ, удалено устаревших: {removed}")
+
+    # Cache-busting: ссылка на photos.js в index.html всегда была одна и та
+    # же ("photos.js"), из-за этого браузеры могли годами отдавать старую
+    # закэшированную копию файла, даже когда на GitHub уже лежит новая версия
+    # с более крупными миниатюрами. Дописываем к ссылке короткий хэш от
+    # содержимого — при каждом реальном изменении файла ссылка меняется,
+    # и браузер гарантированно скачивает свежую версию.
+    if os.path.exists(INDEX_FILE):
+        version = hashlib.sha256(open(OUTPUT_FILE, "rb").read()).hexdigest()[:10]
+        with open(INDEX_FILE, "r", encoding="utf-8") as f:
+            html = f.read()
+        new_html, n = re.subn(
+            r'src="photos\.js(?:\?v=[^"]*)?"',
+            f'src="photos.js?v={version}"',
+            html,
+            count=1,
+        )
+        if n:
+            with open(INDEX_FILE, "w", encoding="utf-8") as f:
+                f.write(new_html)
+            print(f"  index.html: ссылка на photos.js обновлена (?v={version})")
+        else:
+            print(
+                "  предупреждение: не нашёл тег <script src=\"photos.js\"...> "
+                "в index.html — версию проставить не удалось, проверьте вручную",
+                file=sys.stderr,
+            )
+    else:
+        print("  index.html не найден рядом — версию photos.js не обновляю", file=sys.stderr)
 
 
 if __name__ == "__main__":
