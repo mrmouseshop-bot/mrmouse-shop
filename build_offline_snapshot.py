@@ -69,6 +69,18 @@ def request_with_retry(url, **kwargs):
     return resp
 
 
+def strip_for_offline(rec):
+    """Облегчённая копия записи для офлайн-снепшота: поле Photo (подписанные
+    S3-ссылки на оригинал и превью NocoDB) в офлайне абсолютно бесполезно —
+    без интернета эти ссылки всё равно не откроются, а миниатюра и так
+    берётся из встроенного PHOTO_CACHE по Id записи независимо от
+    содержимого Photo. На реальных данных это поле — около 60% всего веса
+    снепшота, срезаем его целиком."""
+    light = dict(rec)
+    light["Photo"] = None
+    return light
+
+
 def fetch_all_records():
     all_records, offset = [], 0
     while True:
@@ -114,13 +126,31 @@ def main():
         print("  photos.js не найден — офлайн-версия будет без встроенных миниатюр", file=sys.stderr)
 
     generated_at = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
-    snapshot_obj = {"records": records, "generatedAt": generated_at}
+    light_records = [strip_for_offline(r) for r in records]
+    snapshot_obj = {"records": light_records, "generatedAt": generated_at}
     snapshot_json = json.dumps(snapshot_obj, ensure_ascii=False)
     # Защита: если в названии/описании товара вдруg встретится буквальная
     # последовательность "</script" — браузерный HTML-парсер закроет тег
     # раньше времени и обрежет весь дальнейший JSON. \/ — валидный экранированный
     # слэш в JSON, JSON.parse превратит его обратно в обычный "/"
     snapshot_json = re.sub(r"</(script)", r"<\\/\1", snapshot_json, flags=re.IGNORECASE)
+
+    # 0) Статичная подсказка "откройте в Safari" — вставляется ДО любого JS
+    # и не зависит от него вообще. iOS часто открывает скачанный HTML-файл
+    # не в полноценном Safari, а в урезанном режиме предпросмотра (Quick
+    # Look), где тяжёлые страницы могут работать медленнее или зависать.
+    # Эта строка — чистый HTML/CSS, покажется в любом случае, даже если
+    # весь дальнейший JavaScript на странице не запустится вовсе.
+    static_hint = (
+        '<div style="background:#6B2737;color:#fff;text-align:center;'
+        'padding:10px 16px;font-family:sans-serif;font-size:13px;'
+        'line-height:1.4;">'
+        '📴 Офлайн-версия каталога. Если товары не появляются — нажмите '
+        '«Поделиться» внизу экрана и выберите «Открыть в Safari».'
+        '</div>'
+    )
+    if "<body>" in html:
+        html = html.replace("<body>", "<body>\n" + static_hint, 1)
 
     # 1) Инлиним photos.js прямо в файл вместо внешней ссылки на него —
     # офлайн-версия должна быть одним самодостаточным файлом
