@@ -4,8 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
+
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C1712">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mr. Mouse — Элитные сыры и деликатесы">
+<meta property="og:description" content="Магазин элитных сыров, хамона и деликатесов с доставкой по Москве.">
+<meta property="og:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
+<meta property="og:url" content="https://mrmouseshop-bot.github.io/mrmouseshop/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Mr. Mouse — Элитные сыры и деликатесы">
+<meta name="twitter:description" content="Магазин элитных сыров, хамона и деликатесов с доставкой по Москве.">
+<meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
+
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=a31d3a8891" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -3594,6 +3610,19 @@ loadCatalog().catch(err => {
   document.getElementById('productList').innerHTML =
     `<div class="no-results">Не удалось загрузить каталог<br><small>${esc(err.message)}</small></div>`;
 });
+
+// Service Worker делает сайт по-настоящему надёжным офлайн для тех, кто
+// добавил его на "Экран Домой". Регистрируем только для живого сайта —
+// в скачанном локальном offline.html (window.OFFLINE_SNAPSHOT) браузер и
+// так не даёт регистрировать SW для file://, но на всякий случай не
+// пытаемся вовсе, чтобы не засорять консоль лишней неудачной попыткой.
+if ('serviceWorker' in navigator && !window.OFFLINE_SNAPSHOT) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(err => {
+      console.warn('Service Worker не зарегистрировался:', err);
+    });
+  });
+}
 </script>
 </body>
 </html>
