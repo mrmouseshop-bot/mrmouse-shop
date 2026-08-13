@@ -2695,6 +2695,51 @@ function removeCartPiece(id, idx) {
   renderProducts();
 }
 
+// Группа одинаковых кусков (тот же вес и та же пометка) в развёрнутом
+// списке корзины — вместо кучи одинаковых редактируемых строк показываем
+// одну строку "300г ×5" со счётчиком количества, как и в тексте заказа
+function changeCartPieceGroupQty(id, weight, note, delta) {
+  const item = cart.find(c => c.product.id === id);
+  if (!item) return;
+  if (delta > 0) {
+    item.pieces.push({ weight, note: note || '' });
+  } else {
+    const idx = item.pieces.findIndex(pc => pc.weight === weight && (pc.note || '') === (note || ''));
+    if (idx !== -1) item.pieces.splice(idx, 1);
+  }
+  if (!item.pieces.length) cart = cart.filter(c => c.product.id !== id);
+  updateCartCount();
+  renderCart();
+  renderProducts();
+}
+
+function removeCartPieceGroup(id, weight, note) {
+  const item = cart.find(c => c.product.id === id);
+  if (!item) return;
+  item.pieces = item.pieces.filter(pc => !(pc.weight === weight && (pc.note || '') === (note || '')));
+  if (!item.pieces.length) cart = cart.filter(c => c.product.id !== id);
+  updateCartCount();
+  renderCart();
+  renderProducts();
+}
+
+// Группирует куски по (вес, пометка) в порядке первого появления —
+// используется, чтобы в развёрнутом списке корзины показать одинаковые
+// куски одной строкой "300г ×5" вместо N одинаковых редактируемых строк
+function groupCartPieces(pieces) {
+  const groups = [];
+  const index = {};
+  pieces.forEach((pc, originalIdx) => {
+    const key = pc.weight + '|' + (pc.note || '');
+    if (index[key] === undefined) {
+      index[key] = groups.length;
+      groups.push({ weight: pc.weight, note: pc.note || '', count: 0, firstIndex: originalIdx });
+    }
+    groups[index[key]].count++;
+  });
+  return groups;
+}
+
 function toggleCartExpand(id) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
@@ -2893,20 +2938,41 @@ function renderCart() {
           </button>
           ${item.expanded ? `
             <div class="pieces-list">
-              ${pieces.map((pc, idx) => `
-                <div class="piece-row">
-                  <div class="piece-weight-controls">
-                    <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
-                    <input class="cart-weight-input" type="number" value="${pc.weight}"
-                      onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="50">
-                    <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
-                    <span style="font-size:0.62rem;color:var(--gray)">г</span>
+              ${groupCartPieces(pieces).map(g => {
+                if (g.count === 1) {
+                  // Единственный в своём роде кусок — редактируем как раньше,
+                  // полной строкой с вводом веса
+                  const idx = g.firstIndex;
+                  return `
+                    <div class="piece-row">
+                      <div class="piece-weight-controls">
+                        <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
+                        <input class="cart-weight-input" type="number" value="${g.weight}"
+                          onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="50">
+                        <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
+                        <span style="font-size:0.62rem;color:var(--gray)">г</span>
+                      </div>
+                      <span class="piece-price">${Math.round(p.price * g.weight / 100)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
+                      ${g.weight >= MIN_WEIGHT * 2 ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},${idx})">✂️</button>` : ''}
+                      <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
+                    </div>
+                  `;
+                }
+                // Несколько одинаковых кусков — одна строка "300г ×N" со
+                // счётчиком количества, без индивидуального ввода веса
+                const noteAttr = g.note.replace(/'/g, "\\'");
+                return `
+                  <div class="piece-row">
+                    <div class="piece-weight-controls">
+                      <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',-1)">−</button>
+                      <span class="portion-count">${g.weight}г ×${g.count}</span>
+                      <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',1)">+</button>
+                    </div>
+                    <span class="piece-price">${Math.round(p.price * g.weight * g.count / 100)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
+                    <button class="piece-remove" onclick="removeCartPieceGroup(${p.id},${g.weight},'${noteAttr}')">✕</button>
                   </div>
-                  <span class="piece-price">${Math.round(p.price * pc.weight / 100)}₽${pc.note ? ' · '+esc(pc.note) : ''}</span>
-                  ${pc.weight >= MIN_WEIGHT * 2 ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},${idx})">✂️</button>` : ''}
-                  <button class="piece-remove" onclick="removeCartPiece(${p.id},${idx})">✕</button>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             </div>
           ` : ''}
         `;
