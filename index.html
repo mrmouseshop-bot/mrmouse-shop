@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Mr. Mouse — Элитные сыры и деликатесы</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=cbf3104951" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1119,6 +1119,7 @@
 <div class="offline-mini-bar" id="offlineMiniBar">
   <a href="offline.html" download class="offline-mini-link">📥 Скачать офлайн-версию</a>
 </div>
+<div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
   <div class="logo">Mr.<span>Mouse</span></div>
   <button class="cart-btn" onclick="toggleCart()">
@@ -1186,8 +1187,6 @@
   <button class="filters-reset-btn" onclick="resetFilters()">Сбросить фильтры</button>
 </div>
 
-<div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
-
 <div class="categories" id="categories"></div>
 <div class="subcategories" id="subcategories"></div>
 <div class="products" id="productList"><div class="loading-state">Загружаем каталог…</div></div>
@@ -1197,6 +1196,7 @@
     <div class="offline-modal-icon">📥</div>
     <p><b>Сохраните офлайн-версию магазина</b></p>
     <p style="font-size:0.72rem;color:var(--gray);">Пригодится, если сайт вдруг не загрузится — каталог, корзина и заказ через мессенджер работают даже без интернета.</p>
+    <p style="font-size:0.62rem;color:var(--gray);">Файл собирается автоматически раз в сутки и всегда содержит <b>весь</b> ассортимент целиком — можно скачивать в любой момент, дожидаться загрузки страницы не нужно.</p>
     <p style="font-size:0.62rem;color:var(--gray);font-style:italic;">После скачивания открывайте файл через «Файлы» → «Загрузки» на телефоне — не по этой же ссылке, она без интернета не откроется.</p>
     <div class="confirm-actions offline-modal-actions">
       <a class="offline-download-link" href="offline.html" download onclick="dismissOfflinePrompt()">Скачать</a>
