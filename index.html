@@ -2140,8 +2140,13 @@ async function loadCatalog() {
     return;
   }
 
+  // ?refresh=1 в адресе сайта — принудительно игнорирует кэш каталога,
+  // даже если он ещё "свежий" (не истекли 24 часа). Удобно менеджерам сразу
+  // после правки таблицы в NocoDB — не нужно чистить localStorage вручную.
+  const forceRefresh = new URLSearchParams(location.search).get('refresh') === '1';
+
   const cached = readCatalogCache();
-  const isFresh = cached && (Date.now() - cached.time < CATALOG_CACHE_TTL_MS);
+  const isFresh = !forceRefresh && cached && (Date.now() - cached.time < CATALOG_CACHE_TTL_MS);
 
   // Свежий кэш — используем его и вообще не обращаемся к API
   if (isFresh) {
