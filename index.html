@@ -1321,7 +1321,7 @@
     <label class="field-label" style="margin-top:16px;">Промокод</label>
     <div class="field-note" style="margin-top:0;">Скидка не действует на товары с пометкой SALE и на технические позиции (упаковка, аккумулятор холода и т.п.)</div>
     <div class="promo-row">
-      <input class="field-input" id="promoInput" value="TEST5%" onkeydown="if(event.key==='Enter'){applyPromo();event.preventDefault();}" style="margin-bottom:0;">
+      <input class="field-input" id="promoInput" onkeydown="if(event.key==='Enter'){applyPromo();event.preventDefault();}" style="margin-bottom:0;">
       <button class="promo-btn promo-apply" onclick="applyPromo()">Применить</button>
       <button class="promo-btn promo-clear" onclick="clearPromo()">Стереть</button>
     </div>
@@ -1458,11 +1458,9 @@ const CONFIG = {
   MAX_LINK: "https://max.ru/u/f9LHodD0cOJk6YYur1bNqQ3qlKVNP5AF9J-a7tFKcjnedwldsVXXbCxz-8Y",
 };
 // Промокоды: код (без учёта регистра) -> процент скидки. Не действует на товары с isSale.
-// TEST5% зашит всегда как запасной; остальные подтягиваются из полей
-// PromoCode/PromoDiscount в самой таблице товаров (см. registerPromoFromRecord)
-let PROMO_CODES = {
-  "TEST5%": 5,
-};
+// Заполняются из полей PromoCode/PromoDiscount в самой таблице товаров
+// (см. registerPromoFromRecord) — здесь по умолчанию пусто.
+let PROMO_CODES = {};
 
 // Если в строке товара заполнены PromoCode и PromoDiscount — регистрируем
 // как действующий промокод (столбцы можно заполнить у любой одной строки,
@@ -2999,7 +2997,7 @@ function cartItemLinePrice(item) {
 
 // Считает подытог, скидку по промокоду (не действует на товары с isSale) и итог.
 // Используется и в корзине, и при формировании текста заказа — чтобы суммы не расходились.
-let appliedPromoCode = 'TEST5%'; // предзаполненный по умолчанию, как и раньше
+let appliedPromoCode = '';
 
 function applyPromo() {
   const raw = document.getElementById('promoInput').value.trim();
