@@ -344,7 +344,6 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
     flex-shrink: 0;
   }
   .prod-info-btn {
@@ -360,7 +359,7 @@
   }
 
   .prod-thumb {
-    width: 92px; height: 92px; flex-shrink: 0;
+    width: 130px; height: 130px; flex-shrink: 0;
     border-radius: 10px;
     background: #fff center/cover no-repeat;
     overflow: hidden;
@@ -369,7 +368,7 @@
     justify-content: center;
   }
   .prod-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
-  .thumb-placeholder { font-size: 2rem; }
+  .thumb-placeholder { font-size: 2.6rem; }
 
   .prod-info { flex: 1; min-width: 0; }
 
@@ -381,12 +380,18 @@
     line-height: 1.3;
     margin-bottom: 4px;
   }
+  .prod-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
   .prod-badges {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 5px;
-    margin-bottom: 6px;
   }
 
   .prod-meta {
@@ -394,7 +399,6 @@
     color: var(--gray);
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    margin-bottom: 6px;
   }
   .prod-specs {
     font-size: 0.62rem;
@@ -1481,7 +1485,7 @@ function formatPiecesBreakdown(pieces) {
     groups[index[key]].count++;
   });
   return groups.map(g => {
-    const base = g.count > 1 ? `${g.weight}г×${g.count}` : `${g.weight}г`;
+    const base = g.count > 1 ? `${g.weight}гр×${g.count}` : `${g.weight}гр`;
     return g.note ? `${base} (${g.note})` : base;
   }).join(', ');
 }
@@ -1540,7 +1544,7 @@ function askPartsCount(weight) {
     const maxParts = Math.max(1, Math.floor(weight / MIN_WEIGHT));
     const modal = document.getElementById('partsModal');
     document.getElementById('partsModalText').textContent =
-      `${weight} г — на сколько частей разделить? Кусочки от ${MIN_WEIGHT}г, максимум ${maxParts} шт. Если 1 — отрежем одним куском.`;
+      `${weight} гр — на сколько частей разделить? Кусочки от ${MIN_WEIGHT}гр, максимум ${maxParts} шт. Если 1 — отрежем одним куском.`;
     const input = document.getElementById('partsCountInput');
     input.value = 1;
     input.min = 1;
@@ -1583,7 +1587,7 @@ async function resolveWeight(rawWeight, productMinGrams, explicitPieces) {
       'Добавить', 'Отмена'
     );
     if (!ok) return null;
-    note = `меньше обычного минимума (${productMinGrams}г)`;
+    note = `меньше обычного минимума (${productMinGrams}гр)`;
   }
 
   // Клиент уже явно натапал количество кусков кнопками порций — это и есть
@@ -1948,7 +1952,7 @@ function mapRecord(rec) {
   const isSale = salePrice !== null || !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
   // Что показать мелкой строкой в карточке рядом с флагом страны
   const minQtyDisplay = isMigrated
-    ? (minQtyNum ? `~${minQtyNum}г` : null)
+    ? (minQtyNum ? `~${minQtyNum}гр` : null)
     : (minQtyText || null);
   // Хамон/прошутто и т.п. с плавающим весом — целый кусок, который не режут
   // под заказ, а просто взвешивают и пересчитывают цену — помечаем плашкой
@@ -2012,7 +2016,7 @@ function mapRecord(rec) {
     unitPrice,       // фактическая цена за 1 шт/1 позицию для approxPiece и flat
     pieceWeightGrams,
     minWeightGrams,  // собственный минимум развесного товара, если выше общего
-    unit: priceMode === 'weight' ? "100г" : "шт",
+    unit: priceMode === 'weight' ? "100гр" : "шт",
     minQty: minQtyDisplay,
     inStock: isAvailable(rec),
     isNew,
@@ -2532,7 +2536,7 @@ function renderProductCards(items) {
       } else if (p.weighted) {
         const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
-          ? `<div class="weight-min-note">от ${p.minWeightGrams}г <span class="weight-min-soft" onclick="setMinWeight(${p.id})">(можем и ${MIN_WEIGHT}г — нажмите здесь 👆)</span></div>`
+          ? `<div class="weight-min-note">от ${p.minWeightGrams}гр <span class="weight-min-soft" onclick="setMinWeight(${p.id})">(можем и ${MIN_WEIGHT}гр — нажмите здесь 👆)</span></div>`
           : '';
         const pieces = inCart ? (cartItem.pieces || []) : [];
         const cartWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
@@ -2542,8 +2546,8 @@ function renderProductCards(items) {
         if (inCart && cartWeight) {
           const sum = Math.round(p.price * cartWeight / 100);
           const breakdown = pieces.length > 1
-            ? `${formatPiecesBreakdown(pieces)} — итого ${cartWeight}г`
-            : `${cartWeight}г${pieces[0]?.note ? ' (' + pieces[0].note + ')' : ''}`;
+            ? `${formatPiecesBreakdown(pieces)} — итого ${cartWeight}гр`
+            : `${cartWeight}гр${pieces[0]?.note ? ' (' + pieces[0].note + ')' : ''}`;
           cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
         }
         const resetBtn = inCart
@@ -2565,7 +2569,7 @@ function renderProductCards(items) {
               <button class="portion-btn" onclick="adjustPortions(${p.id},-1,${base})">−</button>
               <span class="portion-count" id="portions${p.id}" data-base="${base}">×1</span>
               <button class="portion-btn" onclick="adjustPortions(${p.id},1,${base})">+</button>
-              <span class="portion-hint">по ${base}г</span>
+              <span class="portion-hint">по ${base}гр</span>
             </div>
             <div class="counter-explain">— если хочется ровные классические куски</div>
           </div>
@@ -2595,30 +2599,31 @@ function renderProductCards(items) {
         }
       }
 
-      const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100г';
+      const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
       const oldPriceHtml = p.oldPrice ? `<span class="old-price">${p.priceMode === 'weight' ? p.oldPrice : p.oldUnitPrice}₽</span> ` : '';
       const priceHtml = p.priceMode === 'weight'
         ? `${oldPriceHtml}${p.price}₽/${p.unit}`
         : p.priceMode === 'approxPiece'
-          ? `${oldPriceHtml}${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}г, ${p.price}₽/${priceBaseLabel})</span>`
+          ? `${oldPriceHtml}${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel})</span>`
           : `${oldPriceHtml}${p.unitPrice}₽`;
 
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
           <div class="prod-top-row">
             <div class="prod-thumb-col">
-              <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="92" height="92" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
-              ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
+              <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
             </div>
             <div class="prod-info">
               <div class="prod-name">${esc(p.name)}</div>
-              ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon) ? `<div class="prod-badges">
-                ${p.isNew ? '<span class="badge-new">new</span>' : ''}
-                ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
-                ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
-                ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
-              </div>` : ''}
-              <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
+              <div class="prod-meta-row">
+                <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
+                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon) ? `<div class="prod-badges">
+                  ${p.isNew ? '<span class="badge-new">new</span>' : ''}
+                  ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
+                  ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
+                  ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
+                </div>` : ''}
+              </div>
               ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
                 p.fat && `Жирность ${esc(p.fat)}`,
                 p.aging && `Выдержка ${esc(p.aging)}`,
@@ -2628,6 +2633,7 @@ function renderProductCards(items) {
               <div class="prod-price">${priceHtml}</div>
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
               ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
+              ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
             </div>
           </div>
           <div class="prod-foot">
@@ -3057,7 +3063,7 @@ function renderCart() {
       const pieces = item.pieces || [];
       const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
       linePrice = Math.round(p.price * totalWeight / 100);
-      detailText = totalWeight + 'г × ' + p.price + '₽/100г';
+      detailText = totalWeight + 'гр × ' + p.price + '₽/100гр';
       if (pieces.length > 1) {
         detailText += ' — ' + formatPiecesBreakdown(pieces);
       }
@@ -3072,10 +3078,10 @@ function renderCart() {
         extraHtml = `
           <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,-1)">−</button>
-            <input class="cart-weight-input" type="number" value="${piece.weight||''}" placeholder="от 300г"
+            <input class="cart-weight-input" type="number" value="${piece.weight||''}" placeholder="от 300гр"
               onchange="updateCartPieceWeight(${p.id},0,this.value)" min="300" step="50">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,1)">+</button>
-            <span style="font-size:0.65rem;color:var(--gray)">г</span>
+            <span style="font-size:0.65rem;color:var(--gray)">гр</span>
             ${splitBtn}
           </div>
         `;
@@ -3100,7 +3106,7 @@ function renderCart() {
                         <input class="cart-weight-input" type="number" value="${g.weight}"
                           onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="50">
                         <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
-                        <span style="font-size:0.62rem;color:var(--gray)">г</span>
+                        <span style="font-size:0.62rem;color:var(--gray)">гр</span>
                       </div>
                       <span class="piece-price">${Math.round(p.price * g.weight / 100)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
                       ${g.weight >= MIN_WEIGHT * 2 ? `<button class="piece-split-btn" onclick="splitCartPiece(${p.id},${idx})">✂️</button>` : ''}
@@ -3115,7 +3121,7 @@ function renderCart() {
                   <div class="piece-row">
                     <div class="piece-weight-controls">
                       <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',-1)">−</button>
-                      <span class="portion-count">${g.weight}г ×${g.count}</span>
+                      <span class="portion-count">${g.weight}гр ×${g.count}</span>
                       <button class="portion-btn" onclick="changeCartPieceGroupQty(${p.id},${g.weight},'${noteAttr}',1)">+</button>
                     </div>
                     <span class="piece-price">${Math.round(p.price * g.weight * g.count / 100)}₽${g.note ? ' · '+esc(g.note) : ''}</span>
@@ -3130,7 +3136,7 @@ function renderCart() {
     } else {
       linePrice = p.unitPrice * item.qty;
       detailText = item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
-      if (p.priceMode === 'approxPiece') detailText += ` (~${p.pieceWeightGrams}г/шт)`;
+      if (p.priceMode === 'approxPiece') detailText += ` (~${p.pieceWeightGrams}гр/шт)`;
       extraHtml = `
         <div style="margin-top:4px;display:flex;align-items:center;gap:6px">
           <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
@@ -3426,7 +3432,7 @@ function buildOrderText() {
       const pieces = item.pieces || [];
       const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
       const sum = Math.round(p.price * totalWeight / 100);
-      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)} кг) × ${p.price}₽/100г = ${sum}₽`;
+      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)} кг) × ${p.price}₽/100гр = ${sum}₽`;
       if (pieces.length <= 1) {
         const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
         if (notes.length) line += ` [${notes.join('; ')}]`;
@@ -3435,7 +3441,7 @@ function buildOrderText() {
       // Если кусков несколько — отдельной строкой расписываем, как именно
       // покупатель их разбил (менеджер иначе видит только суммарный вес)
       if (pieces.length > 1) {
-        const breakdown = pieces.map(pc => `${pc.weight}г` + (pc.note ? ` (${pc.note})` : '')).join(', ');
+        const breakdown = pieces.map(pc => `${pc.weight}гр` + (pc.note ? ` (${pc.note})` : '')).join(', ');
         lines.push(`    Куски: ${breakdown}`);
       }
       lineNum++;
