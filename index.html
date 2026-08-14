@@ -3359,7 +3359,23 @@ function renderCart() {
 let deliveryMethod = 'courier'; // courier | pickup | cdek
 
 function setDeliveryMethod(method) {
+  const previousMethod = deliveryMethod;
   deliveryMethod = method;
+
+  // Уходим со СДЭК на курьера/самовывоз — убираем аккумулятор(ы) холода,
+  // но только если они попали в корзину именно из предупреждения СДЭК.
+  // Если покупатель добавил их сам заранее (ещё до выбора СДЭК) — не трогаем,
+  // это его осознанный выбор, а не наша автоматика.
+  if (previousMethod === 'cdek' && method !== 'cdek') {
+    const before = cart.length;
+    cart = cart.filter(c => !c.addedViaCdekNotice);
+    if (cart.length !== before) {
+      updateCartCount();
+      renderProducts();
+      showToast('Аккумулятор холода убран из корзины — вы выбрали доставку без ограничений по температуре');
+    }
+  }
+
   document.getElementById('methodBtn-courier').classList.toggle('active', method === 'courier');
   document.getElementById('methodBtn-pickup').classList.toggle('active', method === 'pickup');
   document.getElementById('methodBtn-cdek').classList.toggle('active', method === 'cdek');
@@ -3455,8 +3471,16 @@ function closeCdekNotice() {
     const icepack = products.find(p => /аккумулятор холода/i.test(p.name));
     if (icepack) {
       const existing = cart.find(c => c.product.id === icepack.id);
-      if (existing) existing.qty += qty;
-      else cart.push({ product: icepack, qty });
+      if (existing) {
+        // Уже был в корзине САМ по себе (покупатель добавил его раньше,
+        // не через это предупреждение) — не помечаем, при отказе от СДЭК
+        // такой аккумулятор трогать не будем, это осознанный выбор покупателя
+        existing.qty += qty;
+      } else {
+        // Появился в корзине именно благодаря этому предупреждению —
+        // помечаем, чтобы можно было автоматически убрать при отказе от СДЭК
+        cart.push({ product: icepack, qty, addedViaCdekNotice: true });
+      }
       updateCartCount();
       renderProducts();
       renderCart();
