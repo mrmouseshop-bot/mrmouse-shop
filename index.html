@@ -1429,7 +1429,7 @@ window.addEventListener('error', function (e) {
    отдельный от того, что использует бот / скрипт импорта. */
 const CONFIG = {
   NOCODB_URL: "https://app.nocodb.com",
-  NOCODB_TOKEN: "nc_pat_3ggLVlEw8gthOQwhqS6OFvx7YsMSscKBve35f8lD",
+  NOCODB_TOKEN: "nc_pat_8NKekuDFQ81Iz33GECnemRzSJOxnWvRmbC7hVGOz",
   TABLE_ID: "mzyn24rg2qoo8xs",
   TELEGRAM_USERNAME: "MrMouseShop",
   WHATSAPP_PHONE: "79800200095",
@@ -2304,6 +2304,48 @@ function normalizeSearch(s) {
   return (s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// --- Нечёткий поиск (допуск на опечатки) ---
+// Используется только как запасной вариант, когда точное вхождение подстроки
+// вообще ничего не находит — чтобы не портить релевантность при правильно
+// набранном запросе (там точный поиск и так работает быстро и предсказуемо).
+function levenshteinDistance(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const curr = [i];
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+    }
+    prev = curr;
+  }
+  return prev[n];
+}
+
+// Порог допустимых опечаток растёт вместе с длиной слова — для коротких
+// слов даже одна замена буквы может случайно совпасть с другим словом
+function typoThreshold(len) {
+  if (len <= 3) return 0;
+  if (len <= 6) return 1;
+  return 2;
+}
+
+function fuzzyWordMatch(textWords, queryWord) {
+  const threshold = typoThreshold(queryWord.length);
+  if (threshold === 0) return textWords.some(w => w.includes(queryWord));
+  return textWords.some(w => Math.abs(w.length - queryWord.length) <= threshold
+    && levenshteinDistance(w, queryWord) <= threshold);
+}
+
+// Каждое слово запроса должно найти достаточно близкое слово в тексте —
+// так "пармизан манчего" не совпадёт с товаром, где есть только "манчего"
+function fuzzyIncludes(normalizedText, normalizedQuery) {
+  const textWords = normalizedText.split(' ');
+  return normalizedQuery.split(' ').every(qw => fuzzyWordMatch(textWords, qw));
+}
+
 // Подсказки под строкой поиска: показываем до 8 лучших совпадений по всему
 // каталогу, сортируя по релевантности — сначала совпадения с начала названия,
 // затем по позиции совпадения внутри строки.
@@ -2317,11 +2359,20 @@ function renderSuggestions() {
     return;
   }
 
-  const matches = products
+  let matches = products
     .map(p => ({ p, idx: normalizeSearch(p.name).indexOf(search) }))
     .filter(m => m.idx !== -1)
     .sort((a, b) => a.idx - b.idx || a.p.name.localeCompare(b.p.name))
     .slice(0, 8);
+
+  // Точных совпадений вообще нет — пробуем нечёткий поиск (допуск на опечатки)
+  if (!matches.length) {
+    matches = products
+      .filter(p => fuzzyIncludes(normalizeSearch(p.name), search))
+      .map(p => ({ p, idx: 0 }))
+      .sort((a, b) => a.p.name.localeCompare(b.p.name))
+      .slice(0, 8);
+  }
 
   if (!matches.length) {
     el.classList.remove('open');
@@ -2402,8 +2453,17 @@ function renderProducts() {
   const saleView = !search && activeCategory === "🔥 Акции";
   const newView = !search && activeCategory === "🆕 NEW";
   const expiringView = !search && activeCategory === "⏰ УСПЕЙТЕ!";
+  // Нечёткий поиск (допуск на опечатки) включается, только если точное
+  // совпадение вообще ничего не нашло — например, "пармизан" вместо
+  // "пармезан". Если хоть один товар нашёлся точно — им и доверяем.
+  const useFuzzySearch = !!search && !products.some(p => normalizeSearch(p.name).includes(search));
+  function matchesSearchText(p) {
+    if (!search) return true;
+    const name = normalizeSearch(p.name);
+    return useFuzzySearch ? fuzzyIncludes(name, search) : name.includes(search);
+  }
   const cats = search
-    ? [...new Set(products.filter(p => normalizeSearch(p.name).includes(search)).map(p => p.cat))]
+    ? [...new Set(products.filter(p => matchesSearchText(p)).map(p => p.cat))]
     : saleView
       ? [...new Set(products.filter(p => p.isSale).map(p => p.cat))]
       : newView
@@ -2418,7 +2478,7 @@ function renderProducts() {
   function matchItem(p, cat) {
     const applySubcat = !search && !saleView && !newView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
     const matchCat = p.cat === cat;
-    const matchSearch = !search || normalizeSearch(p.name).includes(search);
+    const matchSearch = matchesSearchText(p);
     const matchSubcat = !applySubcat || p.subcat === activeSubcat;
     const matchSale = !saleView || p.isSale;
     const matchNew = !newView || p.isNew;
@@ -2544,7 +2604,7 @@ function renderProductCards(items) {
           : `${oldPriceHtml}${p.unitPrice}₽`;
 
       html += `
-        <div class="product-card ${!p.inStock?'out-of-stock':''}">
+        <div class="product-card ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
           <div class="prod-top-row">
             <div class="prod-thumb-col">
               <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="92" height="92" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
@@ -2580,6 +2640,23 @@ function renderProductCards(items) {
     return html;
 }
 
+// Точечное обновление ОДНОЙ карточки товара (например, после +/- количества
+// в корзине) — вместо того чтобы перестраивать innerHTML всего каталога
+// (может быть сотни карточек) на каждое нажатие. Если карточки сейчас нет
+// на экране (другой фильтр/категория) — просто ничего не делаем, ей и не
+// нужно обновляться, пока не станет видна снова через полный renderProducts()
+function updateSingleProductCard(id) {
+  const el = document.querySelector(`.product-card[data-pid="${id}"]`);
+  if (!el) return false;
+  const p = products.find(x => x.id === id);
+  if (!p) return false;
+  const html = renderProductCards([p]);
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html.trim();
+  el.replaceWith(wrapper.firstElementChild);
+  return true;
+}
+
 async function addWeighted(id) {
   const p = products.find(x=>x.id===id);
   const input = document.getElementById('w'+id);
@@ -2612,7 +2689,7 @@ async function addWeighted(id) {
   input.value = '';
   input.dataset.viaPortions = 'false';
   updateCartCount();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
   showToast('Добавлено: ' + p.name);
 }
 
@@ -2622,7 +2699,7 @@ function addFixed(id) {
   if (existing) { existing.qty++; }
   else { cart.push({ product: p, qty: 1 }); }
   updateCartCount();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
   showToast('Добавлено в заказ');
 }
 
@@ -2652,7 +2729,7 @@ function changeQty(id, delta) {
   cart[idx].qty += delta;
   if (cart[idx].qty <= 0) cart.splice(idx, 1);
   updateCartCount();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
   renderCart();
 }
 
@@ -2660,7 +2737,7 @@ function removeFromCart(id) {
   cart = cart.filter(c=>c.product.id!==id);
   updateCartCount();
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 // Шаг +/- для конкретного куска уже в корзине (по индексу внутри pieces).
@@ -2674,7 +2751,7 @@ async function stepCartPieceWeight(id, idx, delta) {
   if (!result) { renderCart(); return; }
   item.pieces.splice(idx, 1, ...result.pieces);
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 async function updateCartPieceWeight(id, idx, val) {
@@ -2684,7 +2761,7 @@ async function updateCartPieceWeight(id, idx, val) {
   if (!result) { renderCart(); return; } // откатываем поле к прежнему значению
   item.pieces.splice(idx, 1, ...result.pieces);
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 // Явное разделение уже добавленного куска на несколько частей — открывает
@@ -2710,7 +2787,7 @@ async function splitCartPiece(id, idx) {
   item.pieces.splice(idx, 1, ...newPieces);
   item.expanded = true;
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 function removeCartPiece(id, idx) {
@@ -2720,7 +2797,7 @@ function removeCartPiece(id, idx) {
   if (!item.pieces.length) cart = cart.filter(c=>c.product.id!==id);
   updateCartCount();
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 // Группа одинаковых кусков (тот же вес и та же пометка) в развёрнутом
@@ -2738,7 +2815,7 @@ function changeCartPieceGroupQty(id, weight, note, delta) {
   if (!item.pieces.length) cart = cart.filter(c => c.product.id !== id);
   updateCartCount();
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 function removeCartPieceGroup(id, weight, note) {
@@ -2748,7 +2825,7 @@ function removeCartPieceGroup(id, weight, note) {
   if (!item.pieces.length) cart = cart.filter(c => c.product.id !== id);
   updateCartCount();
   renderCart();
-  renderProducts();
+  if (!updateSingleProductCard(id)) renderProducts();
 }
 
 // Группирует куски по (вес, пометка) в порядке первого появления —
@@ -2775,9 +2852,54 @@ function toggleCartExpand(id) {
   renderCart();
 }
 
+const CART_STORAGE_KEY = 'mrmouse_cart_v1';
+
+// Сохраняем корзину только по id товара + куски/количество — НЕ весь объект
+// product целиком (он может быть увесистым и просто устареет при следующей
+// загрузке каталога). При восстановлении product всегда берём заново из
+// актуального products — так корзина не "тянет" устаревшую цену/наличие.
+function saveCartToStorage() {
+  try {
+    const light = cart.map(item => ({
+      productId: item.product.id,
+      qty: item.qty,
+      pieces: item.pieces,
+      expanded: item.expanded,
+    }));
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(light));
+  } catch (e) { /* localStorage недоступен — корзина просто не переживёт закрытие, не критично */ }
+}
+
+// Вызывается один раз при старте, после того как каталог уже загружен
+// (иначе не из чего было бы взять актуальные объекты product по id)
+function restoreCartFromStorage() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return;
+    const light = JSON.parse(raw);
+    if (!Array.isArray(light)) return;
+    const restored = [];
+    for (const item of light) {
+      const product = products.find(p => p.id === item.productId);
+      // Товар мог пропасть из наличия/каталога с прошлого раза — молча
+      // пропускаем именно его, остальную корзину это не портит
+      if (!product) continue;
+      restored.push({ product, qty: item.qty, pieces: item.pieces, expanded: item.expanded });
+    }
+    if (restored.length) {
+      cart = restored;
+      updateCartCount();
+      renderProducts();
+    }
+  } catch (e) {
+    console.warn('Не удалось восстановить корзину из памяти телефона:', e);
+  }
+}
+
 function updateCartCount() {
   document.getElementById('cartCount').textContent = cart.length;
   const sumEl = document.getElementById('cartHeaderSum');
+  saveCartToStorage();
   if (!cart.length) { sumEl.textContent = ''; return; }
   const { total } = computeCartTotals();
   sumEl.textContent = total + ' ₽';
@@ -3598,11 +3720,10 @@ function closeProductInfo() {
   document.getElementById('productInfoPhotoWrap').innerHTML = '';
 }
 
-// Кнопка «Лифт вверх» — появляется после прокрутки вниз, скроллит к началу
-// каталога (к категориям), не перекрывая карточки товаров
+// Кнопка «Лифт вверх» — появляется после прокрутки вниз, скроллит в
+// самый верх страницы целиком (шапка, лого, поиск), а не только к каталогу
 function scrollToTop() {
-  const target = document.getElementById('categories') || document.body;
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 window.addEventListener('scroll', () => {
   document.getElementById('scrollTopBtn').classList.toggle('show', window.scrollY > 500);
@@ -3610,7 +3731,9 @@ window.addEventListener('scroll', () => {
 
 initTimeSelect();
 
-loadCatalog().catch(err => {
+loadCatalog().then(() => {
+  restoreCartFromStorage();
+}).catch(err => {
   document.getElementById('productList').innerHTML =
     `<div class="no-results">Не удалось загрузить каталог<br><small>${esc(err.message)}</small></div>`;
 });
