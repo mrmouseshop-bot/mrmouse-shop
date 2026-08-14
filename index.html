@@ -2077,7 +2077,7 @@ let catalogFullyLoaded = false;
 // и не "замораживает" дату на момент кэширования.
 const CATALOG_CACHE_KEY = 'mrmouse_catalog_raw_v1';
 const CATALOG_CACHE_TIME_KEY = 'mrmouse_catalog_raw_v1_time';
-const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 часа
+const CATALOG_CACHE_TTL_MS = 1000 * 60 * 60 * 12; // 12 часов
 
 function readCatalogCache() {
   try {
