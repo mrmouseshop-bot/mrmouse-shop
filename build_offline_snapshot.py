@@ -176,6 +176,21 @@ def main():
     with open(INDEX_FILE, "r", encoding="utf-8") as f:
         html = f.read()
 
+    # Вырезаем внешние сетевые ресурсы, которые в офлайне бесполезны:
+    # - Telegram Web App SDK — не нужен вне Telegram, а на некоторых
+    #   устройствах (сообщалось про iOS Quick Look) сетевой запрос к нему
+    #   без интернета не сразу проваливается с ошибкой, а подвисает надолго
+    # - Google Fonts — та же история, просто не подгрузится офлайн, но
+    #   лучше не давать браузеру вообще пытаться на неё сходить в сети
+    telegram_tag = '<script src="https://telegram.org/js/telegram-web-app.js"></script>\n'
+    if telegram_tag in html:
+        html = html.replace(telegram_tag, "", 1)
+        print("  вырезан внешний Telegram Web App SDK (не нужен офлайн)")
+    fonts_match = re.search(r'<link href="https://fonts\.googleapis\.com/[^"]*" rel="stylesheet">\n?', html)
+    if fonts_match:
+        html = html.replace(fonts_match.group(0), "", 1)
+        print("  вырезаны внешние Google Fonts (офлайн всё равно не загрузятся; сайт покажет системный шрифт)")
+
     kept_ids = {str(r.get("Id")) for r in records}
     photos_js = ""
     if os.path.exists(PHOTOS_FILE):
