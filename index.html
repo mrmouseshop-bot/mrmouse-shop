@@ -843,6 +843,29 @@
     cursor: pointer;
     font-family: 'Montserrat', sans-serif;
   }
+  .cart-add-weight-row {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--light-border);
+  }
+  .cart-add-weight-row .cart-weight-input { width: 70px; }
+  .cart-add-weight-btn {
+    background: var(--wine);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    touch-action: manipulation;
+  }
+  .cart-add-weight-btn:active { background: var(--dark); }
 
   .drawer-footer { padding: 16px 20px; border-top: 1px solid var(--light-border); flex-shrink: 0; background: var(--cream); }
   .delivery-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--light-border); }
@@ -2591,7 +2614,7 @@ function renderProductCards(items) {
           ? `<div class="weight-min-note">от ${p.minWeightGrams}гр <span class="weight-min-soft" onclick="setMinWeight(${p.id})">(можем и ${MIN_WEIGHT}гр — нажмите здесь 👆)</span></div>`
           : '';
         const pieces = inCart ? (cartItem.pieces || []) : [];
-        const cartWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
+        const cartWeight = pieces.reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
         // Несколько кусков разного веса, добавленных по очереди — показываем
         // подробную раскладку (как в корзине), а не просто суммарный вес,
         // иначе не видно, как именно покупатель успел их разбить
@@ -2902,6 +2925,36 @@ function toggleCartExpand(id) {
   renderCart();
 }
 
+// Шаг +/- для поля добавления нового куска прямо в корзине (то же самое
+// поведение, что и у степпера веса на карточке товара)
+function stepCartAddWeight(id, delta) {
+  const input = document.getElementById('cartAddW' + id);
+  if (!input) return;
+  let v = parseFloat(input.value);
+  if (!v || isNaN(v)) v = delta > 0 ? MIN_WEIGHT : 0;
+  else v = v + delta * WEIGHT_STEP;
+  if (v < 0) v = 0;
+  input.value = v || '';
+}
+
+// Добавляет ещё один кусок произвольного веса прямо из корзины, без
+// возврата на карточку товара — та же логика (askPartsCount на большом
+// весе, подтверждение при весе меньше обычного минимума), что и на карточке
+async function addCustomWeightFromCart(id) {
+  const item = cart.find(c => c.product.id === id);
+  if (!item) return;
+  const input = document.getElementById('cartAddW' + id);
+  const rawWeight = input && input.value ? parseFloat(input.value) : (item.product.minWeightGrams || MIN_WEIGHT);
+  const result = await resolveWeight(rawWeight, item.product.minWeightGrams);
+  if (!result) return;
+  item.pieces.push(...result.pieces);
+  if (input) input.value = '';
+  updateCartCount();
+  renderCart();
+  if (!updateSingleProductCard(id)) renderProducts();
+  showToast('Кусок добавлен');
+}
+
 const CART_STORAGE_KEY = 'mrmouse_cart_v1';
 
 // Сохраняем корзину только по id товара + куски/количество — НЕ весь объект
@@ -2929,12 +2982,30 @@ function restoreCartFromStorage() {
     const light = JSON.parse(raw);
     if (!Array.isArray(light)) return;
     const restored = [];
+    let skippedCorrupted = 0;
     for (const item of light) {
       const product = products.find(p => p.id === item.productId);
       // Товар мог пропасть из наличия/каталога с прошлого раза — молча
       // пропускаем именно его, остальную корзину это не портит
       if (!product) continue;
-      restored.push({ product, qty: item.qty, pieces: item.pieces, expanded: item.expanded });
+
+      // Строгая проверка данных перед восстановлением — если qty/pieces
+      // повреждены (не число, пустой массив кусков и т.п.), лучше вообще
+      // не восстанавливать этот товар, чем показать NaN/0 на всю корзину
+      if (product.priceMode === 'weight') {
+        const pieces = Array.isArray(item.pieces)
+          ? item.pieces.filter(pc => pc && Number.isFinite(pc.weight) && pc.weight > 0)
+          : [];
+        if (!pieces.length) { skippedCorrupted++; continue; }
+        restored.push({ product, pieces, expanded: !!item.expanded });
+      } else {
+        const qty = Number(item.qty);
+        if (!Number.isFinite(qty) || qty <= 0) { skippedCorrupted++; continue; }
+        restored.push({ product, qty });
+      }
+    }
+    if (skippedCorrupted) {
+      console.warn(`Восстановление корзины: пропущено повреждённых позиций — ${skippedCorrupted}`);
     }
     if (restored.length) {
       cart = restored;
@@ -3001,10 +3072,11 @@ function toggleCart() {
 function cartItemLinePrice(item) {
   const p = item.product;
   if (p.priceMode === 'weight') {
-    const totalWeight = (item.pieces || []).reduce((s, pc) => s + pc.weight, 0);
+    const totalWeight = (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
     return Math.round(p.price * totalWeight / 100);
   }
-  return p.unitPrice * item.qty;
+  const qty = Number(item.qty) || 0;
+  return (Number(p.unitPrice) || 0) * qty;
 }
 
 // Считает подытог, скидку по промокоду (не действует на товары с isSale) и итог.
@@ -3105,7 +3177,7 @@ function renderCart() {
 
     if (p.priceMode === 'weight') {
       const pieces = item.pieces || [];
-      const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
+      const totalWeight = pieces.reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
       linePrice = Math.round(p.price * totalWeight / 100);
       detailText = totalWeight + 'гр × ' + p.price + '₽/100гр';
       if (pieces.length > 1) {
@@ -3177,6 +3249,18 @@ function renderCart() {
           ` : ''}
         `;
       }
+      // Добавить ещё один кусок произвольного веса прямо из корзины — та же
+      // логика, что на карточке товара (можно вводить любой вес, не только
+      // готовые порции), не нужно возвращаться в каталог за новым куском
+      extraHtml += `
+        <div class="cart-add-weight-row">
+          <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},-1)">−</button>
+          <input class="cart-weight-input" type="number" id="cartAddW${p.id}" placeholder="от ${p.minWeightGrams || MIN_WEIGHT}гр" min="300" step="50">
+          <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},1)">+</button>
+          <span style="font-size:0.62rem;color:var(--gray)">гр</span>
+          <button class="cart-add-weight-btn" onclick="addCustomWeightFromCart(${p.id})">+ добавить кусок</button>
+        </div>
+      `;
     } else {
       linePrice = p.unitPrice * item.qty;
       detailText = item.qty > 1 ? item.qty + ' шт × ' + p.unitPrice + '₽' : p.unitPrice + '₽';
@@ -3474,7 +3558,7 @@ function buildOrderText() {
     const saleTag = p.isSale ? ' [SALE]' : '';
     if (p.priceMode === 'weight') {
       const pieces = item.pieces || [];
-      const totalWeight = pieces.reduce((s, pc) => s + pc.weight, 0);
+      const totalWeight = pieces.reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
       const sum = Math.round(p.price * totalWeight / 100);
       let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)} кг) × ${p.price}₽/100гр = ${sum}₽`;
       if (pieces.length <= 1) {
