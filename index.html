@@ -21,7 +21,7 @@
 <meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=21bf87247a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -274,7 +274,7 @@
 
   .prod-top-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 14px;
   }
 
@@ -307,6 +307,7 @@
     align-items: end;
     gap: 10px;
   }
+  .prod-side-actions:only-child { grid-column: 2; }
   .prod-counters {
     display: flex;
     flex-direction: column;
@@ -406,11 +407,28 @@
     margin-bottom: 4px;
   }
 
-  .prod-price {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--wine);
+  .prod-price-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+  .prod-price-pill {
+    background: var(--wine);
+    color: #fff;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+    white-space: nowrap;
+  }
+  .prod-price-qualifier {
+    font-size: 0.56rem;
+    color: var(--gray);
     text-align: right;
+    max-width: 120px;
+    line-height: 1.25;
   }
   .old-price {
     text-decoration: line-through;
@@ -2529,6 +2547,30 @@ function renderProductCards(items) {
       const cartItem = cart.find(c=>c.product.id===p.id);
       const inCart = !!cartItem;
 
+      const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
+      // Цена теперь выглядит как "пилюля"-кнопка (в тон "в корзину") и стоит
+      // прямо над ней, а не отдельной строкой в шапке карточки. Уточнение
+      // (старая цена/примерный вес) — мелким текстом НАД самой пилюлей,
+      // сжатое по её ширине, а не болтается внутри в кавычках.
+      const oldPriceLine = p.oldPrice
+        ? `<div class="prod-price-qualifier"><span class="old-price">${p.priceMode === 'weight' ? p.oldPrice : p.oldUnitPrice}₽</span></div>`
+        : '';
+      const approxQualifier = p.priceMode === 'approxPiece'
+        ? `<div class="prod-price-qualifier">~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</div>`
+        : '';
+      const priceMain = p.priceMode === 'weight'
+        ? `${p.price}₽/${p.unit}`
+        : p.priceMode === 'approxPiece'
+          ? `${p.unitPrice}₽/шт`
+          : `${p.unitPrice}₽`;
+      const priceBlockHtml = `
+        <div class="prod-price-block">
+          ${oldPriceLine}
+          ${approxQualifier}
+          <div class="prod-price-pill">${priceMain}</div>
+        </div>
+      `;
+
       let controlsHtml = '';
       let cartSummaryHtml = '';
       if (!p.inStock) {
@@ -2599,14 +2641,6 @@ function renderProductCards(items) {
         }
       }
 
-      const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
-      const oldPriceHtml = p.oldPrice ? `<span class="old-price">${p.priceMode === 'weight' ? p.oldPrice : p.oldUnitPrice}₽</span> ` : '';
-      const priceHtml = p.priceMode === 'weight'
-        ? `${oldPriceHtml}${p.price}₽/${p.unit}`
-        : p.priceMode === 'approxPiece'
-          ? `${oldPriceHtml}${p.unitPrice}₽/шт <span style="color:var(--gray);font-weight:400">(~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel})</span>`
-          : `${oldPriceHtml}${p.unitPrice}₽`;
-
       html += `
         <div class="product-card ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
           <div class="prod-top-row">
@@ -2630,10 +2664,10 @@ function renderProductCards(items) {
                 p.milk && esc(p.milk),
               ].filter(Boolean).join(' · ')}</div>` : ''}
               ${p.bestBefore ? `<div class="prod-specs">Годен до ${esc(p.bestBefore)}</div>` : ''}
-              <div class="prod-price">${priceHtml}</div>
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
               ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
               ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
+              ${priceBlockHtml}
             </div>
           </div>
           <div class="prod-foot">
