@@ -37,6 +37,7 @@ from PIL import Image
 
 NOCODB_URL = "https://app.nocodb.com"
 TABLE_ID = "mzyn24rg2qoo8xs"
+BANNERS_TABLE_ID = "mokjoz7ug2k3fok"
 TOKEN = os.environ.get("NOCODB_TOKEN", "")
 
 # Размер и качество миниатюры — карточка на сайте сейчас 130x130
@@ -52,6 +53,11 @@ JPEG_QUALITY = 72
 FULL_MAX_SIZE = 1000
 FULL_JPEG_QUALITY = 82
 
+# Баннеры карусели над каталогом — соотношение 2:1, показываются крупно
+# во всю ширину экрана, поэтому разрешение выше, чем у миниатюр товаров
+BANNER_MAX_WIDTH = 1000
+BANNER_JPEG_QUALITY = 78
+
 # Пауза между запросами, чтобы не упираться в лимит запросов NocoDB (429)
 PAGE_DELAY = 0.6
 IMAGE_DELAY = 0.15
@@ -59,6 +65,7 @@ MAX_RETRIES = 6
 
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "photos.js")
 FULL_PHOTOS_DIR = os.path.join(os.path.dirname(__file__), "photos")
+BANNERS_OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "banners.js")
 INDEX_FILE = os.path.join(os.path.dirname(__file__), "index.html")
 
 
@@ -82,11 +89,11 @@ def request_with_retry(url, **kwargs):
     return resp
 
 
-def fetch_all_records():
+def fetch_all_records(table_id=TABLE_ID):
     all_records, offset = [], 0
     while True:
         resp = request_with_retry(
-            f"{NOCODB_URL}/api/v2/tables/{TABLE_ID}/records",
+            f"{NOCODB_URL}/api/v2/tables/{table_id}/records",
             headers={"xc-token": TOKEN},
             params={"limit": 200, "offset": offset},
             timeout=30,
@@ -99,6 +106,45 @@ def fetch_all_records():
         offset += len(page)
         time.sleep(PAGE_DELAY)
     return all_records
+
+
+def build_banners():
+    """Собирает banners.js — баннеры карусели, "запечённые" в base64 точно
+    так же, как миниатюры товаров. Живых подписанных ссылок NocoDB тут не
+    используем вовсе — баннеров мало, тратить на них отдельный сетевой
+    запрос при каждом открытии сайта незачем, а подписанные ссылки всё
+    равно протухают через пару часов."""
+    print("\nСобираю баннеры карусели...")
+    records = fetch_all_records(BANNERS_TABLE_ID)
+    active = [r for r in records if r.get("Active")]
+    active.sort(key=lambda r: (r.get("Order") if r.get("Order") is not None else 9999))
+    print(f"  баннеров всего: {len(records)}, активных: {len(active)}")
+
+    banners = []
+    for rec in active:
+        url = best_photo_url(rec.get("Image"))
+        if not url:
+            continue
+        try:
+            resp = request_with_retry(url, timeout=20)
+            img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+            img.thumbnail((BANNER_MAX_WIDTH, BANNER_MAX_WIDTH * 2))  # ограничиваем по ширине, высоту не режем
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=BANNER_JPEG_QUALITY, optimize=True)
+            b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+            banners.append({"image": f"data:image/jpeg;base64,{b64}"})
+        except Exception as e:
+            print(f"  пропуск баннера Id={rec.get('Id')}: {e}", file=sys.stderr)
+        time.sleep(IMAGE_DELAY)
+
+    with open(BANNERS_OUTPUT_FILE, "w", encoding="utf-8") as f:
+        f.write("// Автоматически сгенерировано build_photos.py — не редактировать руками\n")
+        f.write("window.BANNER_CACHE = ")
+        json.dump(banners, f, ensure_ascii=False)
+        f.write(";\n")
+
+    size_kb = os.path.getsize(BANNERS_OUTPUT_FILE) / 1024
+    print(f"  banners.js: {len(banners)} баннеров, {size_kb:.0f} КБ")
 
 
 def best_photo_url(photo_field):
@@ -234,6 +280,32 @@ def main():
             )
     else:
         print("  index.html не найден рядом — версию photos.js не обновляю", file=sys.stderr)
+
+    # Баннеры карусели — отдельный шаг, независимый от товаров
+    build_banners()
+
+    # То же самое версионирование (cache-busting) для banners.js — иначе
+    # браузер может годами показывать старые баннеры из своего кэша
+    if os.path.exists(INDEX_FILE):
+        banner_version = hashlib.sha256(open(BANNERS_OUTPUT_FILE, "rb").read()).hexdigest()[:10]
+        with open(INDEX_FILE, "r", encoding="utf-8") as f:
+            html = f.read()
+        new_html, n = re.subn(
+            r'src="banners\.js(?:\?v=[^"]*)?"',
+            f'src="banners.js?v={banner_version}"',
+            html,
+            count=1,
+        )
+        if n:
+            with open(INDEX_FILE, "w", encoding="utf-8") as f:
+                f.write(new_html)
+            print(f"  index.html: ссылка на banners.js обновлена (?v={banner_version})")
+        else:
+            print(
+                "  предупреждение: не нашёл тег <script src=\"banners.js\"...> "
+                "в index.html — версию проставить не удалось, проверьте вручную",
+                file=sys.stderr,
+            )
 
 
 if __name__ == "__main__":
