@@ -60,8 +60,29 @@ CATEGORY_ORDER = [
     "Бакалея", "Подарочный бокс", "Доп.",
 ]
 
-DEJAVU_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-DEJAVU_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+DEJAVU_REGULAR_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+    "/usr/local/share/fonts/DejaVuSans.ttf",
+]
+DEJAVU_BOLD_CANDIDATES = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/local/share/fonts/DejaVuSans-Bold.ttf",
+]
+
+
+def find_font(candidates, label):
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    print(
+        f"Не нашёл шрифт {label} ни по одному из путей: {candidates}\n"
+        f"Установите пакет с кириллическим шрифтом, например:"
+        f" sudo apt-get install -y fonts-dejavu-core",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def request_with_retry(url, **kwargs):
@@ -223,8 +244,10 @@ def decode_thumb(data_uri, size_pt=34):
 
 
 def build_pdf(products):
-    pdfmetrics.registerFont(TTFont("DejaVu", DEJAVU_REGULAR))
-    pdfmetrics.registerFont(TTFont("DejaVu-Bold", DEJAVU_BOLD))
+    dejavu_regular = find_font(DEJAVU_REGULAR_CANDIDATES, "DejaVuSans (обычный)")
+    dejavu_bold = find_font(DEJAVU_BOLD_CANDIDATES, "DejaVuSans-Bold (жирный)")
+    pdfmetrics.registerFont(TTFont("DejaVu", dejavu_regular))
+    pdfmetrics.registerFont(TTFont("DejaVu-Bold", dejavu_bold))
 
     doc = SimpleDocTemplate(
         OUTPUT_FILE, pagesize=A4,
