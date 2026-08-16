@@ -89,6 +89,17 @@ def request_with_retry(url, **kwargs):
     return resp
 
 
+def is_available(rec):
+    """Точная копия isAvailable() из index.html — поддерживает и чекбокс
+    (true/false), и старое текстовое поле. Товары не в наличии на сайте
+    всё равно не показываются — нет смысла тратить время/запросы на
+    обработку их фото при каждой ежедневной сборке."""
+    val = rec.get("Availability")
+    if isinstance(val, bool):
+        return val
+    return str(val or "").strip().lower() != "нет в наличии"
+
+
 def fetch_all_records(table_id=TABLE_ID):
     all_records, offset = [], 0
     while True:
@@ -203,10 +214,13 @@ def main():
     records = fetch_all_records()
     print(f"Загружено записей: {len(records)}")
 
+    available_records = [r for r in records if (r.get("Name") or "").strip() and is_available(r)]
+    print(f"  из них в наличии (только для них обрабатываем фото): {len(available_records)}")
+
     cache = {}
     current_ids_with_photo = set()
     errors = 0
-    for i, rec in enumerate(records):
+    for i, rec in enumerate(available_records):
         rec_id = rec.get("Id")
         if rec_id is None:
             continue
@@ -224,7 +238,7 @@ def main():
             print(f"  пропуск Id={rec_id}: {e}", file=sys.stderr)
         time.sleep(IMAGE_DELAY)
         if (i + 1) % 100 == 0:
-            print(f"  обработано {i + 1}/{len(records)}")
+            print(f"  обработано {i + 1}/{len(available_records)}")
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("// Автоматически сгенерировано build_photos.py — не редактировать руками\n")
