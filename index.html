@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=21bf87247a" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=88c4b97baf" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -68,6 +68,13 @@
     padding: 5px 10px;
   }
   .offline-mini-bar.show { display: block; }
+  .offline-save-btn {
+    display: none;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.25);
+  }
+  .offline-save-btn.show { display: block; }
   .offline-mini-link {
     background: none;
     border: none;
@@ -79,6 +86,21 @@
     text-decoration: none;
     cursor: pointer;
     touch-action: manipulation;
+    display: block;
+  }
+
+  .telegram-mini-bar {
+    background: #229ED9;
+    text-align: center;
+    padding: 5px 10px;
+  }
+  .telegram-mini-link {
+    color: #fff;
+    font-size: 0.66rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    text-decoration: none;
+    display: block;
   }
 
   .logo {
@@ -1224,8 +1246,12 @@
 </head>
 <body>
 
-<div class="offline-mini-bar" id="offlineMiniBar">
-  <button class="offline-mini-link" onclick="document.getElementById('offlineDownloadModal')?.classList.add('open')">📲 Сохранить магазин на телефон</button>
+<div class="offline-mini-bar show" id="offlineMiniBarWrap">
+  <button class="offline-mini-link offline-save-btn" id="offlineMiniBar" onclick="document.getElementById('offlineDownloadModal')?.classList.add('open')">📲 Сохранить магазин на телефон</button>
+  <a class="offline-mini-link" href="price-list.pdf" download>📄 Скачать PDF прайс</a>
+</div>
+<div class="telegram-mini-bar">
+  <a class="telegram-mini-link" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener">✈️ Подписывайтесь на наш Telegram-канал</a>
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
