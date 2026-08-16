@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=b3770be76d" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=98266b3690" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -2181,8 +2181,33 @@ function isCheeseCategory(cat) {
   return /сыр/i.test(cat);
 }
 
+// Псевдо-категории — сквозные фильтры, а не настоящие разделы каталога,
+// подкатегории у них никогда не показываем
+const PSEUDO_CATEGORIES = ["Все", "🔥 Акции", "🆕 NEW", "⏰ УСПЕЙТЕ!"];
+
+// Подкатегории теперь работают для ЛЮБОЙ настоящей категории автоматически:
+// если хотя бы у одного товара в ней заполнено поле Subcategory — вкладки
+// подкатегорий появятся сами, без необходимости каждый раз править код.
+// Порядок для сыра — фиксированный вручную (см. CHEESE_SUBCAT_ORDER ниже),
+// для остальных — по порядку первого появления в каталоге (getSubcatOrder).
+function hasSubcats(cat) {
+  if (isCheeseCategory(cat)) return true;
+  if (PSEUDO_CATEGORIES.includes(cat)) return false;
+  return products.some(p => p.cat === cat && p.subcat);
+}
+
 // Порядок подкатегорий сыра — открываем с твёрдых, дальше можно провалиться глубже
 const CHEESE_SUBCAT_ORDER = ["Твёрдые", "Полутвёрдые", "Мягкие", "Десертные"];
+
+function getSubcatOrder(cat) {
+  if (isCheeseCategory(cat)) return CHEESE_SUBCAT_ORDER;
+  const seen = [];
+  for (const p of products) {
+    if (p.cat === cat && p.subcat && !seen.includes(p.subcat)) seen.push(p.subcat);
+  }
+  return seen;
+}
+
 let activeSubcat = null;
 
 // Категории/подкатегории — статичные, рисуем их сразу, не дожидаясь данных
@@ -2369,16 +2394,18 @@ function renderCategories() {
 
 function renderSubcategories() {
   const el = document.getElementById('subcategories');
-  if (!isCheeseCategory(activeCategory)) {
+  if (!hasSubcats(activeCategory)) {
     el.innerHTML = '';
     return;
   }
+  const order = getSubcatOrder(activeCategory);
+  const allLabel = isCheeseCategory(activeCategory) ? "Все сыры" : "Все";
   // Подкатегории тоже статичные — видны сразу, не дожидаясь загрузки товаров
-  const tabs = ["Все сыры", ...CHEESE_SUBCAT_ORDER];
+  const tabs = [allLabel, ...order];
   el.innerHTML = tabs.map(s => {
-    const isActive = (s === "Все сыры" && !activeSubcat) || s === activeSubcat;
-    const val = s === "Все сыры" ? "" : s;
-    return `<button class="subcat-btn ${isActive?'active':''}" onclick="setSubcat('${val}')">${s}</button>`;
+    const isActive = (s === allLabel && !activeSubcat) || s === activeSubcat;
+    const val = s === allLabel ? "" : s;
+    return `<button class="subcat-btn ${isActive?'active':''}" onclick="setSubcat('${val.replace(/'/g,"\\'")}')">${esc(s)}</button>`;
   }).join('');
 }
 
@@ -2633,7 +2660,7 @@ function renderProducts() {
   let found = 0;
 
   function matchItem(p, cat) {
-    const applySubcat = !search && !saleView && !newView && !expiringView && activeCategory !== "Все" && isCheeseCategory(cat) && activeSubcat;
+    const applySubcat = !search && !saleView && !newView && !expiringView && activeCategory !== "Все" && hasSubcats(cat) && activeSubcat;
     const matchCat = p.cat === cat;
     const matchSearch = matchesSearchText(p);
     const matchSubcat = !applySubcat || p.subcat === activeSubcat;
