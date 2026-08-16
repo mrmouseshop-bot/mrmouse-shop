@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=536add19d1" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=50ca5d4bb6" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -522,6 +522,17 @@
     letter-spacing: 0.02em;
     padding: 2px 6px;
     border-radius: 4px;
+  }
+  .badge-lowstock {
+    display: inline-block;
+    background: #c0392b;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
   }
 
   .add-btn {
@@ -2775,11 +2786,12 @@ function renderProductCards(items) {
               <div class="prod-name">${esc(p.name)}</div>
               <div class="prod-meta-row">
                 <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
-                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon) ? `<div class="prod-badges">
+                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock)) ? `<div class="prod-badges">
                   ${p.isNew ? '<span class="badge-new">new</span>' : ''}
                   ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
                   ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
                   ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
+                  ${(p.inStock && p.isLowStock) ? '<span class="badge-lowstock">мало</span>' : ''}
                 </div>` : ''}
               </div>
               ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
@@ -2789,7 +2801,6 @@ function renderProductCards(items) {
               ].filter(Boolean).join(' · ')}</div>` : ''}
               ${p.bestBefore ? `<div class="prod-specs">Годен до ${esc(p.bestBefore)}</div>` : ''}
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
-              ${p.inStock && p.isLowStock ? '<div class="prod-note" style="color:#b8860b">Осталось мало</div>' : ''}
               ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
               ${priceBlockHtml}
             </div>
