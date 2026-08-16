@@ -2156,6 +2156,11 @@ function mapRecord(rec) {
     unitPrice,       // фактическая цена за 1 шт/1 позицию для approxPiece и flat
     pieceWeightGrams,
     minWeightGrams,  // собственный минимум развесного товара, если выше общего
+    // Заполнены ли явные поля (числовой MinQty, чекбоксы Weighted/FloatingWeight),
+    // или approxPiece определился только угадыванием по тексту названия —
+    // используется, чтобы не показывать уточнение веса "~Xгр, Y₽/кг" там,
+    // где вес в названии чисто информационный, а не реальный параметр расчёта
+    isMigrated,
     unit: priceMode === 'weight' ? "100гр" : "шт",
     minQty: minQtyDisplay,
     inStock: isAvailable(rec),
@@ -2718,7 +2723,7 @@ function renderProductCards(items) {
       const oldPriceLine = p.oldPrice
         ? `<div class="prod-price-qualifier"><span class="old-price">${p.priceMode === 'weight' ? p.oldPrice : p.oldUnitPrice}₽</span></div>`
         : '';
-      const approxQualifier = p.priceMode === 'approxPiece'
+      const approxQualifier = (p.priceMode === 'approxPiece' && p.isMigrated)
         ? `<div class="prod-price-qualifier">~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}</div>`
         : '';
       const priceMain = p.priceMode === 'weight'
