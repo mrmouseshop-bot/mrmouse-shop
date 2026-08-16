@@ -19,11 +19,23 @@ jobs:
         with:
           python-version: '3.11'
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Установить зависимости
-        run: pip install requests pillow
+        run: pip install requests pillow reportlab
+
+      - name: Установить шрифт с поддержкой кириллицы (для PDF-прайса)
+        run: sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
 
       - name: Собрать photos.js и папку photos/
         run: python build_photos.py
+        env:
+          NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
+
+      - name: Собрать price-list.pdf
+        run: python build_price_pdf.py
         env:
           NOCODB_TOKEN: ${{ secrets.NOCODB_TOKEN }}
 
@@ -34,4 +46,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: 'Автообновление кэша миниатюр и полноразмерных фото'
-          file_pattern: 'photos.js photos/ banners.js index.html'
+          file_pattern: 'photos.js photos/ banners.js price-list.pdf index.html'
