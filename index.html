@@ -68,12 +68,7 @@
     padding: 5px 10px;
   }
   .offline-mini-bar.show { display: block; }
-  .offline-save-btn {
-    display: none;
-    padding-bottom: 4px;
-    margin-bottom: 4px;
-    border-bottom: 1px solid rgba(255,255,255,0.25);
-  }
+  .offline-save-btn { display: none; }
   .offline-save-btn.show { display: block; }
   .offline-mini-link {
     background: none;
@@ -87,6 +82,8 @@
     cursor: pointer;
     touch-action: manipulation;
     display: block;
+    width: 100%;
+    text-align: center;
   }
 
   .telegram-mini-bar {
@@ -101,6 +98,24 @@
     font-family: 'Montserrat', sans-serif;
     text-decoration: none;
     display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  .pdf-mini-bar {
+    background: #70a83d;
+    text-align: center;
+    padding: 5px 10px;
+  }
+  .pdf-mini-link {
+    color: #fff;
+    font-size: 0.66rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: center;
   }
 
   .logo {
@@ -1246,12 +1261,14 @@
 </head>
 <body>
 
-<div class="offline-mini-bar show" id="offlineMiniBarWrap">
+<div class="offline-mini-bar" id="offlineMiniBarWrap">
   <button class="offline-mini-link offline-save-btn" id="offlineMiniBar" onclick="document.getElementById('offlineDownloadModal')?.classList.add('open')">📲 Сохранить магазин на телефон</button>
-  <a class="offline-mini-link" href="price-list.pdf" download>📄 Скачать PDF прайс</a>
+</div>
+<div class="pdf-mini-bar">
+  <a class="pdf-mini-link" href="price-list.pdf" download>📄 Скачать PDF прайс (таблица)</a>
 </div>
 <div class="telegram-mini-bar">
-  <a class="telegram-mini-link" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener">✈️ Подписывайтесь на наш Telegram-канал</a>
+  <a class="telegram-mini-link" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener">✈️ Подписаться в Telegram</a>
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
@@ -2321,6 +2338,7 @@ function maybeShowOfflinePrompt() {
 
 function showOfflineMiniBar() {
   document.getElementById('offlineMiniBar')?.classList.add('show');
+  document.getElementById('offlineMiniBarWrap')?.classList.add('show');
 }
 
 function dismissOfflinePrompt() {
