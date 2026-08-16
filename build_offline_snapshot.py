@@ -248,15 +248,31 @@ def main():
         html = html.replace("<body>", "<body>\n" + static_hint, 1)
 
     # 1) Инлиним photos.js прямо в файл вместо внешней ссылки на него —
-    # офлайн-версия должна быть одним самодостаточным файлом
-    old_photos_tag = '<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>'
+    # офлайн-версия должна быть одним самодостаточным файлом.
+    # Ищем через regex, а не точное сравнение строки — build_photos.py
+    # дописывает к ссылке версию (?v=хэш) для сброса кэша браузера, и это
+    # не должно ломать поиск тега здесь.
+    photos_tag_re = re.compile(
+        r'<script src="photos\.js(?:\?v=[^"]*)?" onerror="window\.PHOTO_CACHE = window\.PHOTO_CACHE \|\| \{\}"></script>'
+    )
     new_photos_tag = f"<script>\n{photos_js}\n</script>" if photos_js else \
         '<script>window.PHOTO_CACHE = {};</script>'
-    if old_photos_tag not in html:
+    if not photos_tag_re.search(html):
         print("Не нашёл строку подключения photos.js в index.html — возможно, файл изменился."
               " Проверьте вручную.", file=sys.stderr)
         sys.exit(1)
-    html = html.replace(old_photos_tag, new_photos_tag, 1)
+    html = photos_tag_re.sub(lambda m: new_photos_tag, html, count=1)
+
+    # Баннеры карусели — вырезаем из офлайн-сборки целиком. Без интернета
+    # им всё равно неоткуда взяться (внешний banners.js не подключить),
+    # а сама карусель декоративная — не нужна в самодостаточном файле,
+    # где и так на счету каждый килобайт
+    banners_tag_re = re.compile(
+        r'<script src="banners\.js(?:\?v=[^"]*)?" onerror="window\.BANNER_CACHE = window\.BANNER_CACHE \|\| \[\]"></script>'
+    )
+    if banners_tag_re.search(html):
+        html = banners_tag_re.sub(lambda m: '<script>window.BANNER_CACHE = [];</script>', html, count=1)
+        print("  вырезаны баннеры карусели (декоративны, не нужны в офлайн-файле)")
 
     # 2) Добавляем снепшот каталога сразу за инлайненным photos.js —
     # loadCatalog() в index.html уже умеет проверять window.OFFLINE_SNAPSHOT
