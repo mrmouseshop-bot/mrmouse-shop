@@ -1391,7 +1391,7 @@
 
       <div id="courierFields">
         <label class="field-label">Адрес доставки</label>
-        <textarea class="field-textarea" id="addressInput" placeholder="Введите адрес доставки" oninput="renderCart()"></textarea>
+        <textarea class="field-textarea" id="addressInput" placeholder="Введите адрес доставки" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();"></textarea>
         <div class="field-note">Курьером — только по Москве и МО. Для доставки в другие регионы выберите СДЭК выше.</div>
 
         <label class="field-label">Когда доставить</label>
@@ -1428,15 +1428,15 @@
         <div class="field-note" style="margin-top:0;">Отправка СДЭК — только по предоплате, срок доставки ~2-3 дня</div>
         <a href="https://www.cdek.ru/ru/offices" target="_blank" rel="noopener" class="cdek-find-link">🔍 Найти пункт СДЭК на карте</a>
         <label class="field-label">Город</label>
-        <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" oninput="renderCart()">
+        <input class="field-input" id="cdekCity" placeholder="Например, Санкт-Петербург" autocomplete="address-level2" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">Пункт выдачи / адрес СДЭК</label>
-        <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" oninput="renderCart()">
+        <input class="field-input" id="cdekAddress" placeholder="Адрес или номер ПВЗ (скопируйте с карты выше)" autocomplete="street-address" oninput="renderCart();saveDeliveryDetails();">
         <label class="field-label">ФИО получателя</label>
-        <input class="field-input" id="cdekFio" placeholder="Иванов Иван Иванович" oninput="renderCart()">
+        <input class="field-input" id="cdekFio" placeholder="Иванов Иван Иванович" autocomplete="name" oninput="renderCart();saveDeliveryDetails();">
       </div>
 
       <label class="field-label" id="phoneLabel">Номер телефона</label>
-      <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" oninput="renderCart()">
+      <input class="field-input" id="phoneInput" type="tel" placeholder="+7 900 000-00-00" autocomplete="tel" oninput="renderCart();saveDeliveryDetails();">
 
       <label class="field-label">Комментарий к заказу</label>
       <textarea class="field-textarea" id="commentInput" placeholder="Необязательно. Например: нестандартная просьба по нарезке — кусочки поменьше и т.п. Менеджеры часто идут навстречу!" oninput="renderCart()"></textarea>
@@ -3090,6 +3090,46 @@ async function addCustomWeightFromCart(id) {
   showToast('Кусок добавлен');
 }
 
+const DELIVERY_STORAGE_KEY = 'mrmouse_delivery_v1';
+
+// Сохраняем адрес/телефон/данные СДЭК при каждом вводе — чтобы при
+// повторном заказе не приходилось вписывать их заново. Комментарий, дату,
+// время и способ оплаты сюда намеренно не кладём — это разовые детали
+// конкретного заказа, а не "устойчивые" данные покупателя.
+function saveDeliveryDetails() {
+  try {
+    const data = {
+      address: document.getElementById('addressInput').value,
+      phone: document.getElementById('phoneInput').value,
+      cdekCity: document.getElementById('cdekCity').value,
+      cdekAddress: document.getElementById('cdekAddress').value,
+      cdekFio: document.getElementById('cdekFio').value,
+    };
+    localStorage.setItem(DELIVERY_STORAGE_KEY, JSON.stringify(data));
+  } catch (e) { /* не критично — просто не сохранится в этот раз */ }
+}
+
+// Подставляем сохранённые значения при заходе на сайт — но только в
+// ПУСТЫЕ поля, чтобы случайно не перезаписать то, что покупатель уже
+// успел ввести сам в этой же сессии (например, если этот код почему-то
+// вызовется повторно)
+function restoreDeliveryDetails() {
+  try {
+    const raw = localStorage.getItem(DELIVERY_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const setIfEmpty = (id, value) => {
+      const el = document.getElementById(id);
+      if (el && !el.value && value) el.value = value;
+    };
+    setIfEmpty('addressInput', data.address);
+    setIfEmpty('phoneInput', data.phone);
+    setIfEmpty('cdekCity', data.cdekCity);
+    setIfEmpty('cdekAddress', data.cdekAddress);
+    setIfEmpty('cdekFio', data.cdekFio);
+  } catch (e) { /* не критично */ }
+}
+
 const CART_STORAGE_KEY = 'mrmouse_cart_v1';
 
 // Сохраняем корзину только по id товара + куски/количество — НЕ весь объект
@@ -4067,6 +4107,8 @@ function renderBannerCarousel() {
 }
 
 initTimeSelect();
+restoreDeliveryDetails();
+renderCart();
 renderBannerCarousel();
 
 loadCatalog().then(() => {
