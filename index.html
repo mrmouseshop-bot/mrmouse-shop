@@ -3155,7 +3155,7 @@ const CART_STORAGE_KEY = 'mrmouse_cart_v1';
 function saveCartToStorage() {
   try {
     const light = cart.map(item => ({
-      productId: item.product.id,
+      productId: item.product.recId,
       qty: item.qty,
       pieces: item.pieces,
       expanded: item.expanded,
@@ -3175,7 +3175,11 @@ function restoreCartFromStorage() {
     const restored = [];
     let skippedCorrupted = 0;
     for (const item of light) {
-      const product = products.find(p => p.id === item.productId);
+      // recId — настоящий, стабильный ID записи в NocoDB. product.id (обычный
+      // "id") — это порядковый счётчик, который пересчитывается заново при
+      // каждой загрузке каталога и может отличаться от раза к разу — искать
+      // по нему после перезагрузки страницы было ошибкой (корзина "терялась")
+      const product = products.find(p => p.recId === item.productId);
       // Товар мог пропасть из наличия/каталога с прошлого раза — молча
       // пропускаем именно его, остальную корзину это не портит
       if (!product) continue;
