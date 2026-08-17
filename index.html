@@ -972,6 +972,16 @@
 
   .date-field-wrap { position: relative; width: 100%; max-width: 100%; }
   .date-field-wrap .field-input { display: block; }
+  /* iOS Safari иногда игнорирует width:100% у input[type=date] и рендерит
+     его по своей внутренней логике шире контейнера — принудительно
+     убираем нативное оформление и явно фиксируем ширину/box-model */
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
   .date-placeholder {
     position: absolute;
     left: 11px;
@@ -1520,10 +1530,8 @@
       Чат с менеджером откроется автоматически. Когда откроется Telegram,
       просто нажмите на поле ввода и выберите «Вставить».
     </p>
-    <div class="confirm-actions">
+    <div class="confirm-actions" style="flex-direction:column">
       <button class="confirm-btn confirm-yes" style="flex:1" id="longOrderOkBtn">Понятно, перейти в Telegram</button>
-    </div>
-    <div class="confirm-actions">
       <button class="confirm-btn confirm-no" style="flex:1" id="longOrderBackBtn">Вернуться в корзину</button>
     </div>
   </div>
@@ -2273,6 +2281,10 @@ function applyRawRecords(rawRecords) {
   // должны попадать на витрину, даже если по ошибке помечены "в наличии"
   const withName = rawRecords.filter(rec => (rec.Name || '').toString().trim());
   products = withName.filter(isAvailable).map(mapRecord);
+  // Пересчитываем вкладки категорий сразу же — иначе "Успейте" останется
+  // скрытой (какой была до загрузки данных) даже если товары с истекающим
+  // сроком годности на самом деле есть
+  renderCategories();
 }
 
 async function loadCatalog() {
@@ -2392,7 +2404,11 @@ function dismissOfflinePrompt() {
 function renderCategories() {
   const el = document.getElementById('categories');
   const isSpecial = c => c === "🔥 Акции" || c === "⏰ УСПЕЙТЕ!" || c === "🆕 NEW";
-  el.innerHTML = CATS.map(c => `
+  // "Успейте" — скрываем саму вкладку, если сейчас нет ни одного товара
+  // с истекающим сроком годности (а не просто показываем пустой раздел)
+  const hasExpiring = products.some(p => p.isExpiringSoon);
+  const visibleCats = CATS.filter(c => c !== "⏰ УСПЕЙТЕ!" || hasExpiring);
+  el.innerHTML = visibleCats.map(c => `
     <button class="cat-btn ${isSpecial(c) ? 'cat-btn-special' : ''} ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
   `).join('');
   renderSubcategories();
