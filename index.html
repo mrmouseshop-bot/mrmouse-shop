@@ -4173,7 +4173,13 @@ function renderBannerCarousel() {
 
 initTimeSelect();
 restoreDeliveryDetails();
-renderCart();
+// Раньше здесь был renderCart() "на всякий случай" — но он вызывает
+// updateCartCount(), а тот сохраняет корзину в localStorage. Если вызвать
+// это ДО восстановления сохранённой корзины (см. restoreCartFromStorage
+// ниже, она вызывается асинхронно после загрузки каталога) — мы бы
+// затирали сохранённую с прошлого раза корзину пустым массивом ДО того,
+// как успели её прочитать. Сама корзина и так перерисовывается заново
+// при каждом открытии — см. toggleCart().
 renderBannerCarousel();
 
 loadCatalog().then(() => {
