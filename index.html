@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=97b049542c" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=98266b3690" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1606,6 +1606,7 @@ function registerPromoFromRecord(rec) {
 }
 /* ======================================================= */
 
+console.log('[Mr.Mouse] Версия скрипта: 2026-08-17-cart-recid-fix');
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
@@ -2459,7 +2460,17 @@ function filterProducts() {
   renderSuggestions();
   document.getElementById('searchClearBtn').classList.toggle('show', !!document.getElementById('searchInput').value);
   clearTimeout(filterProductsTimeout);
-  filterProductsTimeout = setTimeout(renderProducts, 250);
+  filterProductsTimeout = setTimeout(() => {
+    // Резкое изменение высоты каталога (со всех товаров до пары найденных
+    // и обратно) заставляет мобильный браузер "подпрыгивать" — он старается
+    // удержать сфокусированное поле ввода видимым над клавиатурой и сам
+    // пересчитывает скролл при каждом изменении высоты страницы. Явно
+    // фиксируем и тут же восстанавливаем позицию скролла вокруг перерисовки,
+    // чтобы браузеру не нужно было ничего "досчитывать" самому.
+    const scrollY = window.scrollY;
+    renderProducts();
+    window.scrollTo(0, scrollY);
+  }, 300);
 }
 
 function clearSearch() {
@@ -3180,11 +3191,15 @@ function saveCartToStorage() {
 function restoreCartFromStorage() {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return;
+    if (!raw) {
+      console.log('[Корзина] В памяти телефона ничего не сохранено — нечего восстанавливать.');
+      return;
+    }
     const light = JSON.parse(raw);
     if (!Array.isArray(light)) return;
     const restored = [];
     let skippedCorrupted = 0;
+    let skippedNotFound = 0;
     for (const item of light) {
       // recId — настоящий, стабильный ID записи в NocoDB. product.id (обычный
       // "id") — это порядковый счётчик, который пересчитывается заново при
@@ -3193,7 +3208,11 @@ function restoreCartFromStorage() {
       const product = products.find(p => p.recId === item.productId);
       // Товар мог пропасть из наличия/каталога с прошлого раза — молча
       // пропускаем именно его, остальную корзину это не портит
-      if (!product) continue;
+      if (!product) {
+        skippedNotFound++;
+        console.warn(`[Корзина] Не нашёл товар с recId=${item.productId} среди ${products.length} загруженных товаров — либо товар пропал из наличия, либо это старая версия кэша.`);
+        continue;
+      }
 
       // Строгая проверка данных перед восстановлением — если qty/pieces
       // повреждены (не число, пустой массив кусков и т.п.), лучше вообще
@@ -3210,6 +3229,7 @@ function restoreCartFromStorage() {
         restored.push({ product, qty });
       }
     }
+    console.log(`[Корзина] Сохранено позиций: ${light.length}, восстановлено: ${restored.length}, не найдено в каталоге: ${skippedNotFound}, повреждено: ${skippedCorrupted}.`);
     if (skippedCorrupted) {
       console.warn(`Восстановление корзины: пропущено повреждённых позиций — ${skippedCorrupted}`);
     }
