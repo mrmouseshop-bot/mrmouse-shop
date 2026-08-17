@@ -2817,7 +2817,7 @@ function renderProductCards(items) {
             <div class="weight-group">
               <div class="weight-stepper">
                 <button class="wstep-btn" onclick="stepProductWeight(${p.id},-1)">−</button>
-                <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="50" oninput="syncPortionLabel(${p.id},${base})">
+                <input class="weight-input" type="number" id="w${p.id}" placeholder="от 300" min="300" step="1" oninput="syncPortionLabel(${p.id},${base})">
                 <button class="wstep-btn" onclick="stepProductWeight(${p.id},1)">+</button>
                 <span class="weight-label">гр.</span>
               </div>
@@ -3435,7 +3435,7 @@ function renderCart() {
           <div style="margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,-1)">−</button>
             <input class="cart-weight-input" type="number" value="${piece.weight||''}" placeholder="от 300гр"
-              onchange="updateCartPieceWeight(${p.id},0,this.value)" min="300" step="50">
+              onchange="updateCartPieceWeight(${p.id},0,this.value)" min="300" step="1">
             <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},0,1)">+</button>
             <span style="font-size:0.65rem;color:var(--gray)">гр</span>
             ${splitBtn}
@@ -3460,7 +3460,7 @@ function renderCart() {
                       <div class="piece-weight-controls">
                         <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},-1)">−</button>
                         <input class="cart-weight-input" type="number" value="${g.weight}"
-                          onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="50">
+                          onchange="updateCartPieceWeight(${p.id},${idx},this.value)" min="300" step="1">
                         <button class="wstep-btn" onclick="stepCartPieceWeight(${p.id},${idx},1)">+</button>
                         <span style="font-size:0.62rem;color:var(--gray)">гр</span>
                       </div>
@@ -3495,7 +3495,7 @@ function renderCart() {
       extraHtml += `
         <div class="cart-add-weight-row">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},-1)">−</button>
-          <input class="cart-weight-input" type="number" id="cartAddW${p.id}" placeholder="от ${p.minWeightGrams || MIN_WEIGHT}гр" min="300" step="50">
+          <input class="cart-weight-input" type="number" id="cartAddW${p.id}" placeholder="от ${p.minWeightGrams || MIN_WEIGHT}гр" min="300" step="1">
           <button class="wstep-btn" onclick="stepCartAddWeight(${p.id},1)">+</button>
           <span style="font-size:0.62rem;color:var(--gray)">гр</span>
           <button class="cart-add-weight-btn" onclick="addCustomWeightFromCart(${p.id})">+ добавить кусок</button>
@@ -3824,7 +3824,7 @@ function buildOrderText() {
       const pieces = item.pieces || [];
       const totalWeight = pieces.reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
       const sum = Math.round(p.price * totalWeight / 100);
-      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)} кг) × ${p.price}₽/100гр = ${sum}₽`;
+      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/100гр = ${sum}₽`;
       if (pieces.length <= 1) {
         const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
         if (notes.length) line += ` [${notes.join('; ')}]`;
