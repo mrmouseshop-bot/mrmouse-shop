@@ -1607,6 +1607,17 @@ function registerPromoFromRecord(rec) {
 /* ======================================================= */
 
 console.log('[Mr.Mouse] Версия скрипта: 2026-08-17-cart-recid-fix');
+
+// Отладочная консоль прямо на экране телефона — включается только по
+// ссылке с ?debug=1, обычные покупатели её никогда не увидят и не
+// загрузят лишний скрипт. Нужна для диагностики без Mac (обычный удалённый
+// Web Inspector Safari работает только через компьютер с Mac).
+if (new URLSearchParams(location.search).get('debug') === '1') {
+  const erudaScript = document.createElement('script');
+  erudaScript.src = 'https://cdn.jsdelivr.net/npm/eruda';
+  erudaScript.onload = () => { window.eruda?.init(); };
+  document.body.appendChild(erudaScript);
+}
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
