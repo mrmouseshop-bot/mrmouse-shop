@@ -56,16 +56,14 @@
     overflow-x: hidden;
     /* Сайт делался для телефонов — на широком окне браузера (десктоп)
        ограничиваем колонку разумной шириной и центрируем, а не растягиваем
-       на весь экран. */
+       на весь экран. Только это, БЕЗ transform на body — иначе все
+       position:fixed элементы (в т.ч. корзина с bottom:0) начинают
+       считать координаты от нижнего края ВСЕЙ страницы, а не видимой
+       области экрана, и на длинном каталоге открываются далеко за
+       пределами того, что видно на экране. Фиксированные элементы
+       центрируем каждый по отдельности — см. .cart-drawer и другие ниже. */
     max-width: 480px;
     margin: 0 auto;
-    position: relative;
-    /* Технический приём, не косметика: transform на body заставляет ВСЕ
-       дочерние position:fixed элементы (корзина, модалки подтверждения,
-       кнопка "вверх") позиционироваться относительно ЭТОЙ колонки, а не
-       всего окна браузера — иначе они бы "разъезжались" по краям широкого
-       экрана, даже когда сам контент уже аккуратно сужен и отцентрирован. */
-    transform: translateZ(0);
   }
 
   header {
@@ -832,17 +830,21 @@
   .overlay.open { display: block; }
 
   .cart-drawer {
-    position: fixed; bottom: 0; left: 0; right: 0;
+    position: fixed; bottom: 0; left: 50%; right: auto;
+    width: 100%; max-width: 480px;
     background: var(--cream);
     border-radius: 20px 20px 0 0;
     z-index: 201;
-    transform: translateY(100%);
+    /* Горизонтальное центрирование (на широких экранах) и анимация выезда
+       снизу — это ОДНО свойство transform, совмещаем оба сдвига в одном
+       значении, иначе второе объявление просто перезаписало бы первое */
+    transform: translateX(-50%) translateY(100%);
     transition: transform 0.35s cubic-bezier(.4,0,.2,1);
     max-height: 90vh;
     display: flex;
     flex-direction: column;
   }
-  .cart-drawer.open { transform: translateY(0); }
+  .cart-drawer.open { transform: translateX(-50%) translateY(0); }
 
   .drawer-handle { width: 40px; height: 4px; background: var(--light-border); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
   .drawer-header {
@@ -1121,7 +1123,12 @@
 
   .scroll-top-btn {
     position: fixed;
-    right: 14px;
+    /* На широком окне браузера привязываем кнопку к правому краю
+       центрированной колонки (480px), а не к краю всего окна — иначе
+       кнопка "уезжает" далеко от каталога на десктопе. На телефоне
+       (ширина экрана < 480px) формула ниже сводится ровно к 14px,
+       поведение не меняется. */
+    right: max(14px, calc(50% - 226px));
     bottom: 90px;
     z-index: 150;
     background: var(--dark);
