@@ -1735,7 +1735,11 @@ async function resolveWeight(rawWeight, productMinGrams, explicitPieces) {
     showToast('Введите вес в граммах');
     return null;
   }
-  const weight = roundToStep(rawWeight);
+  // Вес, введённый вручную (в отличие от деления на равные части кнопками
+  // порций), сохраняем как есть — округляем только до целого грамма, БЕЗ
+  // округления до шага 50г. Менеджерам это нужно для точных детализаций
+  // клиентам с произвольным весом.
+  const weight = Math.round(rawWeight);
   if (weight < MIN_WEIGHT) {
     showToast(`Минимальный вес — ${MIN_WEIGHT} г`);
     return null;
