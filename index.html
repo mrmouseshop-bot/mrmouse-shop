@@ -2448,17 +2448,28 @@ function setCategory(cat) {
   renderProducts();
 }
 
+// renderProducts() перестраивает весь каталог (сотни карточек) — вызывать
+// его на каждое нажатие клавиши слишком тяжело и вызывает заметные скачки
+// страницы на телефоне (высота каталога резко меняется на каждый символ,
+// а браузер при открытой клавиатуре пытается удержать поле ввода в кадре).
+// Поэтому полную перерисовку откладываем до короткой паузы в наборе;
+// лёгкие подсказки под строкой поиска обновляются мгновенно, как и раньше.
+let filterProductsTimeout = null;
 function filterProducts() {
-  renderProducts();
   renderSuggestions();
   document.getElementById('searchClearBtn').classList.toggle('show', !!document.getElementById('searchInput').value);
+  clearTimeout(filterProductsTimeout);
+  filterProductsTimeout = setTimeout(renderProducts, 250);
 }
 
 function clearSearch() {
   const input = document.getElementById('searchInput');
   input.value = '';
   input.focus();
-  filterProducts();
+  clearTimeout(filterProductsTimeout);
+  renderProducts();
+  renderSuggestions();
+  document.getElementById('searchClearBtn').classList.remove('show');
 }
 
 let filtersPanelBuilt = false;
