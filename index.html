@@ -2083,13 +2083,11 @@ function mapRecord(rec) {
   let priceMode = 'flat';
   let pieceWeightGrams = null;
 
-  // Приблизительный вес из текста — нужен только для старых, ещё не мигрированных
-  // записей (см. ниже). У мигрированных вес — просто число в MinQty.
+  // hasApprox ("~"/"около"/"примерно" в названии) больше не влияет на выбор
+  // priceMode для немигрированных записей — только на видимость подписи о
+  // весе на карточке (см. hasApprox ниже по коду в другом месте, если есть)
   const combinedText = rawName + " " + minQtyText;
   const hasApprox = isApproxText(combinedText);
-  const approxWeightGrams = hasApprox
-    ? (parseApproxWeightGrams(minQtyText) || parseApproxWeightGrams(rawName))
-    : null;
 
   // Новая схема: два чекбокса — Weighted (развес) и FloatingWeight (штучный
   // с плавающим весом, цена пересчитывается по весу из MinQty). Считаем строку
@@ -2098,10 +2096,9 @@ function mapRecord(rec) {
   // от случайного попадания под чекбоксовую логику с пустыми (false) галочками.
   const isMigrated = typeof rec.MinQty === 'number' || rec.Weighted === true || rec.FloatingWeight === true;
 
-  // Мясные деликатесы, которые продаются целым куском — определяем по названию
-  // (используется только в старой, текстовой ветке ниже)
+  // Мясные деликатесы, которые продаются целым куском — используется только
+  // для расчёта цены за кг (isPerKg) у мигрированных FloatingWeight-товаров
   const isWholeItemMeat = /хамон|прошутто|jam[oó]n|prosciutto|бастурма|окорок/i.test(rawName);
-  const isWholeItemParmesan = /пармезан|parmesan|parmigiano|грана\s*падано|grana\s*padano/i.test(rawName);
   const isWholeLeg = /нога/i.test(rawName);
 
   if (isMigrated) {
@@ -2115,14 +2112,15 @@ function mapRecord(rec) {
     }
   } else if (isWholeLeg) {
     priceMode = 'flat';
-  } else if ((isWholeItemMeat || isWholeItemParmesan) && hasApprox && approxWeightGrams) {
-    priceMode = 'approxPiece';
-    pieceWeightGrams = approxWeightGrams;
   } else if (hasPieceWord && !hasApprox) {
     // «1шт (200гр)» без тильды — точный вес упаковки, цена целиком, как есть
     priceMode = 'flat';
-  } else if (minQtyText || hasApprox) {
-    // «~300гр», «1шт (~300гр)» и т.п. — режем/взвешиваем под заказ, цена за 100г
+  } else if (minQtyText) {
+    // Заполненное текстом поле MinQty (не просто "~" в названии) — режем/
+    // взвешиваем под заказ, цена за 100г. Значок "~" сам по себе в названии
+    // больше не запускает никакую особую логику цены — чисто информационная
+    // пометка для покупателя, пока поля MinQty/Weighted/FloatingWeight не
+    // заполнены явно.
     priceMode = 'weight';
   } else {
     priceMode = 'flat';
