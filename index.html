@@ -40,6 +40,13 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   button { touch-action: manipulation; }
 
+  html {
+    /* Область "снаружи" мобильной колонки на широких экранах — тёмный
+       фон в цвет шапки, чтобы это выглядело как рамка приложения,
+       а не как случайно обрезанный сайт */
+    background: var(--dark);
+  }
+
   body {
     background: var(--cream);
     color: var(--dark);
@@ -47,6 +54,18 @@
     font-weight: 300;
     min-height: 100vh;
     overflow-x: hidden;
+    /* Сайт делался для телефонов — на широком окне браузера (десктоп)
+       ограничиваем колонку разумной шириной и центрируем, а не растягиваем
+       на весь экран. */
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+    /* Технический приём, не косметика: transform на body заставляет ВСЕ
+       дочерние position:fixed элементы (корзина, модалки подтверждения,
+       кнопка "вверх") позиционироваться относительно ЭТОЙ колонки, а не
+       всего окна браузера — иначе они бы "разъезжались" по краям широкого
+       экрана, даже когда сам контент уже аккуратно сужен и отцентрирован. */
+    transform: translateZ(0);
   }
 
   header {
@@ -378,6 +397,21 @@
     white-space: nowrap;
   }
   .prod-reset-btn:active { background: #e8b4ac; color: #8a2f22; }
+
+  .clear-cart-btn {
+    display: block;
+    margin: 0 16px 8px auto;
+    background: none;
+    border: none;
+    color: var(--gray);
+    font-size: 0.66rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    cursor: pointer;
+    padding: 4px 6px;
+    touch-action: manipulation;
+  }
+  .clear-cart-btn:active { color: #c0392b; }
 
   .prod-thumb-col {
     display: flex;
@@ -1314,10 +1348,13 @@
 
 <div class="search-wrap">
   <input class="search-input" type="text" placeholder="Поиск товара..." oninput="filterProducts()"
-    onfocus="filterProducts()" id="searchInput">
+    onfocus="filterProducts()"
+    onblur="setTimeout(hideSuggestions, 150)"
+    onkeydown="if(event.key==='Enter'){hideSuggestions();this.blur();}"
+    id="searchInput">
   <div class="search-icons">
     <button class="search-clear-btn" id="searchClearBtn" onclick="clearSearch()" aria-label="Очистить">✕</button>
-    <button class="search-go-btn" onclick="filterProducts()" aria-label="Искать">🔍</button>
+    <button class="search-go-btn" onclick="filterProducts();hideSuggestions();" aria-label="Искать">🔍</button>
   </div>
   <div class="search-suggestions" id="searchSuggestions"></div>
 </div>
@@ -1389,6 +1426,7 @@
     <h2>Ваш заказ</h2>
     <span class="drawer-header-total" id="totalSumTop">0 ₽</span>
   </div>
+  <button class="clear-cart-btn" id="clearCartBtn" onclick="clearCart()" style="display:none">🗑 Очистить корзину</button>
   <div class="drawer-body">
     <div id="cartBody"></div>
 
@@ -3294,6 +3332,19 @@ function unlockBodyScroll() {
   window.scrollTo(0, savedScrollY);
 }
 
+// Полностью очищает корзину — спрашивает подтверждение, это необратимое
+// действие, а корзина может быть уже прилично собрана
+async function clearCart() {
+  if (!cart.length) return;
+  const ok = await askConfirm('Очистить всю корзину? Это действие нельзя отменить.', 'Очистить', 'Отмена');
+  if (!ok) return;
+  cart = [];
+  updateCartCount();
+  renderCart();
+  renderProducts();
+  showToast('Корзина очищена');
+}
+
 function toggleCart() {
   const drawer = document.getElementById('cartDrawer');
   const overlay = document.getElementById('overlay');
@@ -3384,6 +3435,7 @@ function renderCart() {
   updateCartCount();
 
   if (!cart.length) {
+    document.getElementById('clearCartBtn').style.display = 'none';
     body.innerHTML = `<div class="empty-cart"><span class="emoji">🧀</span>Корзина пуста</div>`;
     document.getElementById('totalSum').textContent = '0 ₽';
     document.getElementById('totalSumTop').textContent = '0 ₽';
@@ -3398,6 +3450,7 @@ function renderCart() {
 
   let total = 0;
   let html = '';
+  document.getElementById('clearCartBtn').style.display = 'block';
 
   // Группируем по категориям (в том же порядке, что и в каталоге), чтобы
   // корзина не превращалась в кашу из вперемешку добавленных товаров
