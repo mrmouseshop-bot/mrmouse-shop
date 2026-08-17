@@ -3194,7 +3194,10 @@ function saveCartToStorage() {
       expanded: item.expanded,
     }));
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(light));
-  } catch (e) { /* localStorage недоступен — корзина просто не переживёт закрытие, не критично */ }
+    console.log(`[Корзина] Сохранено в память телефона: ${light.length} поз. —`, light);
+  } catch (e) {
+    console.warn('[Корзина] Не удалось сохранить в память телефона:', e);
+  }
 }
 
 // Вызывается один раз при старте, после того как каталог уже загружен
