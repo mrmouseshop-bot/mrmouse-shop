@@ -9,7 +9,7 @@
 // обновляем кэш; как только сети нет — отдаём то, что успело закэшироваться
 // при последнем успешном заходе, вместо пустого экрана с ошибкой.
 
-const CACHE_VERSION = 'mrmouse-v2';
+const CACHE_VERSION = 'mrmouse-v3';
 const APP_SHELL = [
   './',
   'index.html',
