@@ -126,7 +126,13 @@ const fs = require('fs');
 const vm = require('vm');
 
 // Минимальные заглушки браузерного окружения — верхнеуровневый код
-// index.html не должен упасть при загрузке без настоящего DOM
+// index.html не должен упасть при загрузке без настоящего DOM.
+// location — отдельно и обязательно: без него скрипт падает на самой
+// первой строке, которая к нему обращается (сейчас это переключатель
+// отладочной консоли по ?debug=1), а это происходит РАНЬШЕ объявления
+// idCounter/mapRecord в файле — падение там молча обрывает остаток
+// скрипта, и mapRecord потом падает с "idCounter before initialization"
+global.location = { search: '', href: '', pathname: '/', hostname: '', origin: '' };
 global.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 global.navigator = { clipboard: undefined };
 const fakeEl = {
