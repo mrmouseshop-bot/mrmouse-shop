@@ -3056,13 +3056,13 @@ function checkReservationLimit(p, weighted, additionalAmount) {
   return { blocked: true, reason: unlocked ? 'outOfStock' : 'reserved' };
 }
 
-function openReservationModal(id, kind) {
-  pendingReservation = { id, kind };
+function openReservationModal(id, resume) {
+  pendingReservation = { id, resume };
   const p = products.find(x => x.id === id);
   const textEl = document.getElementById('reservationModalText');
   if (p && p.publicQty) {
     // Свободный остаток исчерпан, но он был — уточняем это явно
-    const unit = kind === 'weighted' ? 'гр' : 'шт';
+    const unit = p.weighted ? 'гр' : 'шт';
     textEl.innerHTML = `🔒 Свободный остаток (${p.publicQty}${unit}) уже разобран.<br>Введите секретное слово, чтобы взять из брони.`;
   } else {
     textEl.innerHTML = '🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.';
@@ -3080,7 +3080,7 @@ function closeReservationModal() {
 
 function confirmReservation() {
   if (!pendingReservation) return;
-  const { id, kind } = pendingReservation;
+  const { id, resume } = pendingReservation;
   const p = products.find(x => x.id === id);
   if (!p) { closeReservationModal(); return; }
 
@@ -3094,9 +3094,9 @@ function confirmReservation() {
 
   unlockedReservations.add(id);
   closeReservationModal();
-  // Слово верное — повторяем исходное действие, на этот раз оно пройдёт
-  // проверку брони (id уже в unlockedReservations) и добавит товар как обычно
-  if (kind === 'weighted') addWeighted(id); else addFixed(id);
+  // Слово верное — повторяем исходное действие (то самое, что было
+  // заблокировано), на этот раз оно пройдёт проверку брони и выполнится как обычно
+  resume();
 }
 
 async function addWeighted(id) {
@@ -3107,7 +3107,7 @@ async function addWeighted(id) {
 
   const check = checkReservationLimit(p, true, rawWeight);
   if (check.blocked) {
-    if (check.reason === 'reserved') { openReservationModal(id, 'weighted'); return; }
+    if (check.reason === 'reserved') { openReservationModal(id, () => addWeighted(id)); return; }
     showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
     return;
   }
@@ -3147,7 +3147,7 @@ function addFixed(id) {
 
   const check = checkReservationLimit(p, false, 1);
   if (check.blocked) {
-    if (check.reason === 'reserved') { openReservationModal(id, 'flat'); return; }
+    if (check.reason === 'reserved') { openReservationModal(id, () => addFixed(id)); return; }
     showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
     return;
   }
@@ -3183,6 +3183,14 @@ async function quickAddSuggested(id) {
 function changeQty(id, delta) {
   const idx = cart.findIndex(c=>c.product.id===id);
   if (idx === -1) return;
+  if (delta > 0) {
+    const check = checkReservationLimit(cart[idx].product, false, delta);
+    if (check.blocked) {
+      if (check.reason === 'reserved') { openReservationModal(id, () => addFixed(id)); return; }
+      showToast(`Столько ${cart[idx].product.name} нет в наличии даже с учётом брони`);
+      return;
+    }
+  }
   cart[idx].qty += delta;
   if (cart[idx].qty <= 0) cart.splice(idx, 1);
   updateCartCount();
@@ -3204,8 +3212,24 @@ async function stepCartPieceWeight(id, idx, delta) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
   const piece = item.pieces[idx];
-  const result = await resolveWeight(piece.weight + delta * WEIGHT_STEP, item.product.minWeightGrams);
+  const oldWeight = piece.weight;
+  const result = await resolveWeight(oldWeight + delta * WEIGHT_STEP, item.product.minWeightGrams);
   if (!result) { renderCart(); return; }
+
+  // Проверяем только при увеличении: новый суммарный вес кусков, на которые
+  // раскладывается результат, минус вес, который был у куска до правки
+  const newWeightSum = result.pieces.reduce((s,pc)=>s+pc.weight, 0);
+  const netDelta = newWeightSum - oldWeight;
+  if (netDelta > 0) {
+    const check = checkReservationLimit(item.product, true, netDelta);
+    if (check.blocked) {
+      renderCart();
+      if (check.reason === 'reserved') { openReservationModal(id, () => stepCartPieceWeight(id, idx, delta)); return; }
+      showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
+      return;
+    }
+  }
+
   item.pieces.splice(idx, 1, ...result.pieces);
   renderCart();
   if (!updateSingleProductCard(id)) renderProducts();
@@ -3214,8 +3238,22 @@ async function stepCartPieceWeight(id, idx, delta) {
 async function updateCartPieceWeight(id, idx, val) {
   const item = cart.find(c=>c.product.id===id);
   if (!item) return;
+  const oldWeight = item.pieces[idx].weight;
   const result = await resolveWeight(parseFloat(val), item.product.minWeightGrams);
   if (!result) { renderCart(); return; } // откатываем поле к прежнему значению
+
+  const newWeightSum = result.pieces.reduce((s,pc)=>s+pc.weight, 0);
+  const netDelta = newWeightSum - oldWeight;
+  if (netDelta > 0) {
+    const check = checkReservationLimit(item.product, true, netDelta);
+    if (check.blocked) {
+      renderCart();
+      if (check.reason === 'reserved') { openReservationModal(id, () => updateCartPieceWeight(id, idx, val)); return; }
+      showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
+      return;
+    }
+  }
+
   item.pieces.splice(idx, 1, ...result.pieces);
   renderCart();
   if (!updateSingleProductCard(id)) renderProducts();
@@ -3264,6 +3302,12 @@ function changeCartPieceGroupQty(id, weight, note, delta) {
   const item = cart.find(c => c.product.id === id);
   if (!item) return;
   if (delta > 0) {
+    const check = checkReservationLimit(item.product, true, weight);
+    if (check.blocked) {
+      if (check.reason === 'reserved') { openReservationModal(id, () => changeCartPieceGroupQty(id, weight, note, delta)); return; }
+      showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
+      return;
+    }
     item.pieces.push({ weight, note: note || '' });
   } else {
     const idx = item.pieces.findIndex(pc => pc.weight === weight && (pc.note || '') === (note || ''));
@@ -3329,6 +3373,14 @@ async function addCustomWeightFromCart(id) {
   if (!item) return;
   const input = document.getElementById('cartAddW' + id);
   const rawWeight = input && input.value ? parseFloat(input.value) : (item.product.minWeightGrams || MIN_WEIGHT);
+
+  const check = checkReservationLimit(item.product, true, rawWeight);
+  if (check.blocked) {
+    if (check.reason === 'reserved') { openReservationModal(id, () => addCustomWeightFromCart(id)); return; }
+    showToast(`Столько ${item.product.name} нет в наличии даже с учётом брони`);
+    return;
+  }
+
   const result = await resolveWeight(rawWeight, item.product.minWeightGrams);
   if (!result) return;
   item.pieces.push(...result.pieces);
