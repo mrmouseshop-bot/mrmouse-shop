@@ -215,14 +215,22 @@ def run_node_mapping(raw_records):
         return json.load(f)
 
 
+DEFAULT_MIN_WEIGHT = 300  # тот же общий минимум, что и на сайте (MIN_WEIGHT)
+
+
 def format_price(p):
-    """Тот же формат, что и priceBlockHtml на сайте, только текстом для PDF."""
+    """Тот же смысл, что и priceBlockHtml на сайте, но с раздельными строками
+    для PDF: основная цена и (если есть) серое уточнение над ней."""
     price_base_label = "кг" if p.get("priceBaseGrams") == 1000 else "100гр"
     mode = p.get("priceMode")
+    qualifier = None
     if mode == "weight":
         main = f'{p["price"]}₽/{p["unit"]}'
+        min_w = p.get("minWeightGrams") or DEFAULT_MIN_WEIGHT
+        qualifier = f'от ~{min_w}гр'
     elif mode == "approxPiece":
-        main = f'{p["unitPrice"]}₽/шт (~{p["pieceWeightGrams"]}гр, {p["price"]}₽/{price_base_label})'
+        main = f'{p["unitPrice"]}₽/шт'
+        qualifier = f'(~{p["pieceWeightGrams"]}гр, {p["price"]}₽/{price_base_label})'
     else:
         main = f'{p["unitPrice"]}₽'
 
@@ -231,7 +239,28 @@ def format_price(p):
         old_val = p["oldPrice"] if mode == "weight" else p.get("oldUnitPrice")
         if old_val is not None:
             old = f"{old_val}₽"
-    return main, old
+    return main, qualifier, old
+
+
+def esc_pdf(text):
+    """Экранирует спецсимволы reportlab-разметки (&, <, >) в пользовательском
+    тексте (название товара и т.п.), прежде чем вставлять его в Paragraph."""
+    return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def format_badges(p):
+    """Собирает цветные бейджи (NEW/SALE/не режем/мало) инлайн-разметкой
+    reportlab — тем же цветовым кодом, что и сами бейджи на сайте."""
+    bits = []
+    if p.get("isNew"):
+        bits.append('<font color="#C9A84C"><b>NEW</b></font>')
+    if p.get("isSale"):
+        bits.append('<font color="#6B2737"><b>SALE</b></font>')
+    if p.get("notCut"):
+        bits.append('<font color="#8a8378"><b>*не режем</b></font>')
+    if p.get("inStock") and p.get("isLowStock"):
+        bits.append('<font color="#c0392b"><b>МАЛО</b></font>')
+    return "  ".join(bits)
 
 
 def decode_thumb(data_uri, size_pt=34):
@@ -302,9 +331,13 @@ def build_pdf(products):
         for p in items:
             total_items += 1
             thumb = decode_thumb(p.get("photo"))
-            main_price, old_price = format_price(p)
+            main_price, qualifier, old_price = format_price(p)
 
-            name_lines = [Paragraph(p.get("name") or "", name_style)]
+            name_text = esc_pdf(p.get("name") or "")
+            badges = format_badges(p)
+            if badges:
+                name_text += "  " + badges
+            name_lines = [Paragraph(name_text, name_style)]
             meta_bits = []
             if p.get("rawCountry"):
                 meta_bits.append(p["rawCountry"])
@@ -317,7 +350,11 @@ def build_pdf(products):
             if meta_bits:
                 name_lines.append(Paragraph(" &nbsp;|&nbsp; ".join(meta_bits), meta_style))
 
+            # Порядок строк в колонке цены сверху вниз: уточнение (серым,
+            # если есть) → старая зачёркнутая цена (если акция) → сама цена
             price_lines = []
+            if qualifier:
+                price_lines.append(Paragraph(qualifier, old_price_style))
             if old_price:
                 price_lines.append(Paragraph(f'<strike>{old_price}</strike>', old_price_style))
             price_lines.append(Paragraph(main_price, price_style))
