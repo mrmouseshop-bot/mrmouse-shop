@@ -2266,6 +2266,7 @@ const PSEUDO_CATEGORIES = ["Все", "🔥 Акции", "🆕 NEW", "⏰ УСП�
 function hasSubcats(cat) {
   if (isCheeseCategory(cat)) return true;
   if (cat === "🆕 NEW") return products.some(p => p.isNew);
+  if (cat === "🔥 Акции") return products.some(p => p.isSale);
   if (PSEUDO_CATEGORIES.includes(cat)) return false;
   return products.some(p => p.cat === cat && p.subcat);
 }
@@ -2281,6 +2282,11 @@ function getSubcatOrder(cat) {
     // из STATIC_CATS, чтобы вкладки не прыгали местами при каждой перезагрузке.
     const catsWithNew = new Set(products.filter(p => p.isNew).map(p => p.cat));
     return STATIC_CATS.filter(c => catsWithNew.has(c));
+  }
+  if (cat === "🔥 Акции") {
+    // Та же логика, что и для NEW, только по товарам со скидкой
+    const catsWithSale = new Set(products.filter(p => p.isSale).map(p => p.cat));
+    return STATIC_CATS.filter(c => catsWithSale.has(c));
   }
   const seen = [];
   for (const p of products) {
@@ -2759,7 +2765,7 @@ function renderProducts() {
   const cats = search
     ? [...new Set(products.filter(p => matchesSearchText(p)).map(p => p.cat))]
     : saleView
-      ? [...new Set(products.filter(p => p.isSale).map(p => p.cat))]
+      ? (activeSubcat ? [activeSubcat] : [...new Set(products.filter(p => p.isSale).map(p => p.cat))])
       : newView
         ? (activeSubcat ? [activeSubcat] : [...new Set(products.filter(p => p.isNew).map(p => p.cat))])
         : expiringView
