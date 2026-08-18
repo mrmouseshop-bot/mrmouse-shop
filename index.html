@@ -3900,7 +3900,7 @@ function buildOrderText() {
       const pieces = item.pieces || [];
       const totalWeight = pieces.reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
       const sum = Math.round(p.price * totalWeight / 100);
-      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/100гр = ${sum}₽`;
+      let line = `${lineNum}. ${p.name}${saleTag} (${gramsToKg(totalWeight)}) * ${p.price}₽/100гр = ${sum} ₽`;
       if (pieces.length <= 1) {
         const notes = [...new Set(pieces.map(pc => pc.note).filter(Boolean))];
         if (notes.length) line += ` [${notes.join('; ')}]`;
@@ -3925,17 +3925,17 @@ function buildOrderText() {
       if (p.isMigrated) {
         const totalWeightGrams = (p.pieceWeightGrams || 0) * item.qty;
         const baseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
-        lines.push(`${lineNum}. ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum}₽`);
+        lines.push(`${lineNum}. ${p.name}${saleTag} — ${item.qty} шт => (${gramsToKg(totalWeightGrams)} * ${p.price}₽/${baseLabel}) = ${sum} ₽`);
       } else {
         let line = `${lineNum}. ${p.name}${saleTag}`;
-        line += item.qty > 1 ? ` — ${item.qty} шт × ${p.unitPrice}₽ = ${sum}₽` : ` — ${p.unitPrice}₽`;
+        line += item.qty > 1 ? ` — ${item.qty} шт × ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
         lines.push(line);
       }
       lineNum++;
     } else {
       const sum = p.unitPrice * item.qty;
       let line = `${lineNum}. ${p.name}${saleTag}`;
-      line += item.qty > 1 ? ` — ${item.qty} шт × ${p.unitPrice}₽ = ${sum}₽` : ` — ${p.unitPrice}₽`;
+      line += item.qty > 1 ? ` — ${item.qty} шт × ${p.unitPrice}₽ = ${sum} ₽` : ` — ${p.unitPrice} ₽`;
       lines.push(line);
       lineNum++;
     }
