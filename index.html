@@ -566,6 +566,17 @@
     border-radius: 4px;
     text-transform: uppercase;
   }
+  .badge-reserved {
+    display: inline-block;
+    background: #4a5b8c;
+    color: #fff;
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
 
   .add-btn {
     background: var(--dark);
@@ -1582,6 +1593,19 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="reservationModal">
+  <div class="confirm-box">
+    <p id="reservationModalText">🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.</p>
+    <input class="field-input" id="reservationWordInput" placeholder="Секретное слово"
+      onkeydown="if(event.key==='Enter'){confirmReservation();event.preventDefault();}" style="margin-bottom:0;">
+    <p id="reservationErrorText" style="color:#c0392b;font-size:0.7rem;margin-top:6px;display:none;">Неверное слово, попробуйте ещё раз</p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-no" onclick="closeReservationModal()">Отмена</button>
+      <button class="confirm-btn confirm-yes" onclick="confirmReservation()">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="partsModal">
   <div class="confirm-box">
     <p id="partsModalText"></p>
@@ -2156,6 +2180,22 @@ function mapRecord(rec) {
     ? (priceMode === 'approxPiece' ? Math.round(oldPrice * pieceWeightGrams / priceBaseGrams) : oldPrice)
     : null;
   const isSale = salePrice !== null || !!rec.Sale || !!rec['Sale%'] || !!rec['🔥Sale'] || !!rec.Акция;
+  // "Бронь" — отдельное секретное слово у конкретного товара (не путать с
+  // промокодами: те дают скидку всем и регистрируются в общий список,
+  // это же слово только у одного товара и не даёт скидку, а разрешает
+  // добавить в корзину именно эту позицию)
+  const reserveWord = (rec.ReserveWord || rec['СекретноеСлово'] || rec['Бронь'] || '').toString().trim();
+  const isReserved = !!reserveWord;
+  // Количественные пороги брони — необязательные, работают только если
+  // заполнено StockQty. Для штучных/примерных товаров это счёт в штуках,
+  // для весовых — граммы (то же самое, в чём считается MinQty).
+  // Без StockQty — старое поведение "всё или ничего" (после слова: без лимита).
+  // Со StockQty, но без ReserveQty — тоже "всё по брони" (свободных 0),
+  // но теперь ограничено конкретным числом после ввода слова, а не бесконечно.
+  const hasStockQty = typeof rec.StockQty === 'number';
+  const stockQty = hasStockQty ? rec.StockQty : null;
+  const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty : (hasStockQty ? stockQty : 0);
+  const publicQty = hasStockQty ? Math.max(0, stockQty - reserveQty) : null;
   // Что показать мелкой строкой в карточке рядом с флагом страны
   const minQtyDisplay = isMigrated
     ? (minQtyNum ? `~${minQtyNum}гр` : null)
@@ -2212,6 +2252,10 @@ function mapRecord(rec) {
     isSale,
     isLowStock,
     notCut,
+    reserveWord,
+    isReserved,
+    stockQty,
+    publicQty,
     pricePerKg,
     rawCountry: (rec.Country || "").toString().trim() || null,
     isTechnical,
@@ -2929,12 +2973,13 @@ function renderProductCards(items) {
               <div class="prod-name">${esc(p.name)}</div>
               <div class="prod-meta-row">
                 <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
-                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock)) ? `<div class="prod-badges">
+                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved) ? `<div class="prod-badges">
                   ${p.isNew ? '<span class="badge-new">new</span>' : ''}
                   ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
                   ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
                   ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ успейте (${p.daysLeft} дн.)</span>` : ''}
                   ${(p.inStock && p.isLowStock) ? '<span class="badge-lowstock">мало</span>' : ''}
+                  ${p.isReserved ? '<span class="badge-reserved">бронь</span>' : ''}
                 </div>` : ''}
               </div>
               ${(p.fat || p.aging || p.milk) ? `<div class="prod-specs">${[
@@ -2975,11 +3020,96 @@ function updateSingleProductCard(id) {
   return true;
 }
 
+// Товары "по брони" — id уже разблокированных в этой сессии (введено
+// верное секретное слово хотя бы один раз). Не переживает перезагрузку
+// страницы намеренно — бронь проверяется заново при каждом новом визите.
+const unlockedReservations = new Set();
+let pendingReservation = null; // { id, kind: 'weighted'|'flat' }
+
+// Сколько от этого товара уже лежит в корзине — в штуках для flat/approxPiece,
+// в граммах для weight (то же измерение, что и сам лимит publicQty/stockQty)
+function currentCartAmount(id, weighted) {
+  const item = cart.find(c => c.product.id === id);
+  if (!item) return 0;
+  if (weighted) return (item.pieces || []).reduce((s, pc) => s + (Number(pc.weight) || 0), 0);
+  return item.qty || 0;
+}
+
+// Возвращает { blocked: bool, reason: 'reserved'|'outOfStock'|null } —
+// blocked=true и reason='reserved' означает "нужно спросить секретное слово",
+// blocked=true и reason='outOfStock' — даже после слова столько не наберётся
+function checkReservationLimit(p, weighted, additionalAmount) {
+  if (!p.isReserved) return { blocked: false };
+  const already = currentCartAmount(p.id, weighted);
+  const wantTotal = already + additionalAmount;
+  const unlocked = unlockedReservations.has(p.id);
+  const limit = unlocked ? p.stockQty : p.publicQty;
+  if (limit === null || limit === undefined) {
+    // Лимита по количеству нет вообще — только "всё или ничего" по слову
+    return unlocked ? { blocked: false } : { blocked: true, reason: 'reserved' };
+  }
+  if (wantTotal <= limit) return { blocked: false };
+  // Превышает текущий порог — если ещё не разблокировано словом, спрашиваем
+  // его; если уже разблокировано, а всё равно не хватает — значит, товара
+  // физически меньше, чем просят, даже с учётом брони
+  return { blocked: true, reason: unlocked ? 'outOfStock' : 'reserved' };
+}
+
+function openReservationModal(id, kind) {
+  pendingReservation = { id, kind };
+  const p = products.find(x => x.id === id);
+  const textEl = document.getElementById('reservationModalText');
+  if (p && p.publicQty) {
+    // Свободный остаток исчерпан, но он был — уточняем это явно
+    const unit = kind === 'weighted' ? 'гр' : 'шт';
+    textEl.innerHTML = `🔒 Свободный остаток (${p.publicQty}${unit}) уже разобран.<br>Введите секретное слово, чтобы взять из брони.`;
+  } else {
+    textEl.innerHTML = '🔒 Этот товар — по брони.<br>Введите секретное слово, чтобы добавить его в корзину.';
+  }
+  document.getElementById('reservationWordInput').value = '';
+  document.getElementById('reservationErrorText').style.display = 'none';
+  document.getElementById('reservationModal').classList.add('open');
+  document.getElementById('reservationWordInput').focus();
+}
+
+function closeReservationModal() {
+  document.getElementById('reservationModal').classList.remove('open');
+  pendingReservation = null;
+}
+
+function confirmReservation() {
+  if (!pendingReservation) return;
+  const { id, kind } = pendingReservation;
+  const p = products.find(x => x.id === id);
+  if (!p) { closeReservationModal(); return; }
+
+  const entered = document.getElementById('reservationWordInput').value.trim().toLowerCase();
+  const correct = (p.reserveWord || '').trim().toLowerCase();
+
+  if (!entered || entered !== correct) {
+    document.getElementById('reservationErrorText').style.display = 'block';
+    return;
+  }
+
+  unlockedReservations.add(id);
+  closeReservationModal();
+  // Слово верное — повторяем исходное действие, на этот раз оно пройдёт
+  // проверку брони (id уже в unlockedReservations) и добавит товар как обычно
+  if (kind === 'weighted') addWeighted(id); else addFixed(id);
+}
+
 async function addWeighted(id) {
   const p = products.find(x=>x.id===id);
   const input = document.getElementById('w'+id);
   // Пустое поле + просто нажатие «+» — добавляем минимальный вес товара
   const rawWeight = input.value ? parseFloat(input.value) : (p.minWeightGrams || MIN_WEIGHT);
+
+  const check = checkReservationLimit(p, true, rawWeight);
+  if (check.blocked) {
+    if (check.reason === 'reserved') { openReservationModal(id, 'weighted'); return; }
+    showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
+    return;
+  }
 
   // Если вес набран кнопками порций (натапан явно) — куски уже однозначно
   // заданы клиентом, повторно спрашивать "как порезать" не нужно
@@ -3013,6 +3143,14 @@ async function addWeighted(id) {
 
 function addFixed(id) {
   const p = products.find(x=>x.id===id);
+
+  const check = checkReservationLimit(p, false, 1);
+  if (check.blocked) {
+    if (check.reason === 'reserved') { openReservationModal(id, 'flat'); return; }
+    showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
+    return;
+  }
+
   const existing = cart.find(c=>c.product.id===id);
   if (existing) { existing.qty++; }
   else { cart.push({ product: p, qty: 1 }); }
