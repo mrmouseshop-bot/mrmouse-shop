@@ -164,7 +164,7 @@
     grid-area: name;
     display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
   }
-  .product-card.manager-row .mgr-name-row .prod-name { font-size: 0.8rem; line-height: 1.25; }
+  .product-card.manager-row .mgr-name-row .prod-name { font-size: 0.95rem; line-height: 1.3; }
   .product-card.manager-row .mgr-name-row .prod-meta { font-size: 0.65rem; color: var(--gray); }
   .product-card.manager-row .mgr-specs-row {
     grid-area: specs;
@@ -172,7 +172,7 @@
     font-size: 0.62rem;
   }
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; }
-  .product-card.manager-row .mgr-specs-row .manager-copy-btn { margin-top: 2px; }
+  .product-card.manager-row .mgr-price-action .manager-copy-btn { margin: 0; text-align: center; }
   .product-card.manager-row .mgr-cart-col { grid-area: cart; margin-left: -18px; }
   .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 12px 16px; min-height: 60px; align-items: center; }
   .mgr-cart-right {
@@ -3257,11 +3257,11 @@ function renderProductCards(items) {
               ${p.aging ? `<span class="prod-specs">Выдержка ${esc(p.aging)}</span>` : ''}
               ${p.milk ? `<span class="prod-specs">${esc(p.milk)}</span>` : ''}
               ${p.bestBefore ? `<span class="prod-specs">Годен до ${esc(p.bestBefore)}</span>` : ''}
-              ${managerCopyBtn}
             </div>
             <div class="mgr-cart-col">${mgrCartSummaryHtml}</div>
             <div class="mgr-counters">${countersHtml}</div>
             <div class="mgr-price-action">
+              ${managerCopyBtn}
               ${priceBlockHtml}
               <div class="mgr-actions">${mgrActionsHtml}</div>
             </div>
