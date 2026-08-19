@@ -120,9 +120,9 @@
   }
 
   .manager-bar {
+    display: none;
     background: #5b3a8c;
     padding: 8px 12px;
-    display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
@@ -1422,7 +1422,7 @@
 <div class="telegram-mini-bar">
   <a class="telegram-mini-link" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener">✈️ Подписаться в Telegram</a>
 </div>
-<div class="manager-bar" id="managerBar" style="display:none">
+<div class="manager-bar" id="managerBar">
   <span class="manager-bar-label">👔 Режим менеджера</span>
   <button class="manager-bar-btn" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
   <button class="manager-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
@@ -1801,15 +1801,12 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-// Менеджерский режим — включается один раз по специальной ссылке с
-// секретным словом, дальше запоминается на этом устройстве в localStorage.
-// Поменять слово можно, отредактировав константу ниже.
-const MANAGER_SECRET = 'сырныйменеджер2026';
+// Менеджерский режим — включается один раз по ссылке с параметром ?manager,
+// дальше запоминается на этом устройстве в localStorage.
 const MANAGER_FLAG_KEY = 'mrmouse_manager_v1';
 (function initManagerMode() {
   try {
-    const urlWord = new URLSearchParams(location.search).get('manager');
-    if (urlWord && urlWord === MANAGER_SECRET) {
+    if (new URLSearchParams(location.search).has('manager')) {
       localStorage.setItem(MANAGER_FLAG_KEY, '1');
     }
   } catch (e) { /* не критично */ }
@@ -4228,7 +4225,9 @@ function gramsToKg(g) {
 }
 
 function buildOrderText() {
-  const lines = ['Здравствуй, Mr. Mouse, мой заказ:\n'];
+  const lines = isManagerMode()
+    ? ['📞 Заказ принят по телефону (оформлено менеджером)\n']
+    : ['Здравствуй, Mr. Mouse, мой заказ:\n'];
   let lineNum = 1;
 
   cart.forEach(item => {
@@ -4789,6 +4788,7 @@ window.addEventListener('scroll', () => {
 // Не кликабельны (осознанное решение), листаются сами каждые 4 секунды,
 // плюс можно пролистать руками (свайп через scroll-snap).
 function renderBannerCarousel() {
+  if (isManagerMode()) return; // чисто клиентский маркетинг, менеджеру не нужен
   const banners = window.BANNER_CACHE || [];
   const wrap = document.getElementById('bannerCarousel');
   const track = document.getElementById('bannerTrack');
@@ -4832,6 +4832,9 @@ initTimeSelect();
 restoreDeliveryDetails();
 if (isManagerMode()) {
   document.getElementById('managerBar').classList.add('show');
+  // Чисто клиентский маркетинг — менеджеру только мешает, убираем сразу
+  document.getElementById('bannerCarousel').style.display = 'none';
+  document.querySelector('.telegram-mini-bar')?.remove();
 }
 // Раньше здесь был renderCart() "на всякий случай" — но он вызывает
 // updateCartCount(), а тот сохраняет корзину в localStorage. Если вызвать
