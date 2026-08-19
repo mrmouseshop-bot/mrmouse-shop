@@ -1817,7 +1817,10 @@ function isManagerMode() {
 }
 function exitManagerMode() {
   try { localStorage.removeItem(MANAGER_FLAG_KEY); } catch (e) {}
-  location.reload();
+  // location.reload() перезагружает ТУ ЖЕ ссылку — если в адресе всё ещё
+  // был ?manager, режим включился бы заново мгновенно после перезагрузки.
+  // Переходим на чистый адрес без параметров вместо простого reload.
+  location.href = location.pathname;
 }
 
 // ---- Правила заказа на развес: минимум 300г, шаг 50г (вес не ограничен сверху) ----
@@ -4633,6 +4636,71 @@ function findProductByName(name) {
   return products.find(p => fuzzyIncludes(normalizeSearch(p.name), normalized)) || null;
 }
 
+// Разбирает блок "Способ получения / Адрес / День доставки / Время /
+// Телефон / Комментарий" из текста заказа и заполняет те же поля формы,
+// которыми покупатель пользовался бы сам. Адрес — textarea, может занимать
+// несколько строк (например, "Домофон 17" отдельной строкой без подписи) —
+// поэтому берём всё до следующей ИЗВЕСТНОЙ подписи, а не только одну строку.
+function parseAndFillDelivery(text) {
+  const NEXT_LABELS = '(?:Срочная доставка|День доставки:|Время:|Оплата:|Телефон:|Комментарий:|$)';
+  let filled = false;
+
+  const methodMatch = /Способ получения:\s*(.+)/.exec(text);
+  if (methodMatch) {
+    const methodText = methodMatch[1].trim();
+    if (methodText.startsWith('курьером')) {
+      setDeliveryMethod('courier');
+      const addrMatch = new RegExp(`Адрес:\\s*([\\s\\S]+?)\\n(?=${NEXT_LABELS})`).exec(text + '\n');
+      if (addrMatch && addrMatch[1].trim() !== '—') {
+        document.getElementById('addressInput').value = addrMatch[1].trim();
+      }
+      if (/\nСрочная доставка/.test(text)) {
+        document.getElementById('expressCheck').checked = true;
+      } else {
+        const dayMatch = /День доставки:\s*(.+)/.exec(text);
+        if (dayMatch) {
+          const dayVal = dayMatch[1].trim();
+          if (dayVal === 'сегодня') {
+            setDeliveryDateType('today');
+          } else if (dayVal !== '—') {
+            setDeliveryDateType('other');
+            document.getElementById('deliveryDateInput').value = dayVal;
+          }
+        }
+        const timeMatch = /Время:\s*(.+)/.exec(text);
+        if (timeMatch && timeMatch[1].trim() !== '—') {
+          document.getElementById('timeSelect').value = timeMatch[1].trim();
+        }
+      }
+      filled = true;
+    } else if (methodText.startsWith('самовывоз')) {
+      setDeliveryMethod('pickup');
+      filled = true;
+    } else if (methodText.startsWith('СДЭК')) {
+      setDeliveryMethod('cdek');
+      const cityMatch = /Город:\s*(.+)/.exec(text);
+      if (cityMatch && cityMatch[1].trim() !== '—') document.getElementById('cdekCity').value = cityMatch[1].trim();
+      const addrMatch = /Пункт выдачи\/адрес:\s*(.+)/.exec(text);
+      if (addrMatch && addrMatch[1].trim() !== '—') document.getElementById('cdekAddress').value = addrMatch[1].trim();
+      const fioMatch = /ФИО получателя:\s*(.+)/.exec(text);
+      if (fioMatch && fioMatch[1].trim() !== '—') document.getElementById('cdekFio').value = fioMatch[1].trim();
+      filled = true;
+    }
+  }
+
+  if (/Оплата: наличными/.test(text)) document.getElementById('cashCheck').checked = true;
+
+  const phoneMatch = /Телефон:\s*(.+)/.exec(text);
+  if (phoneMatch && phoneMatch[1].trim() !== '—') {
+    document.getElementById('phoneInput').value = phoneMatch[1].trim();
+  }
+
+  const commentMatch = /Комментарий:\s*([\s\S]+)$/.exec(text);
+  if (commentMatch) document.getElementById('commentInput').value = commentMatch[1].trim();
+
+  return filled;
+}
+
 async function runVerifyOrder() {
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
@@ -4646,7 +4714,11 @@ async function runVerifyOrder() {
   const rebuiltCart = [];
   let lastWeightResult = null; // на случай следующей строки "Куски: ..."
 
-  const reWeight = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*\(([\d.]+)\)\s*\*\s*([\d.]+)₽\/100гр\s*=\s*([\d.]+)\s*₽/;
+  // Терпим оба формата: текущий "(0.7) * 320₽/100гр" и более старый
+  // "(0.7 кг) × 320₽/100гр" (мог прийти от клиента со старой закэшированной
+  // версией сайта в браузере) — необязательное "кг" внутри скобок, любой
+  // из двух знаков умножения
+  const reWeight = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*\(([\d.]+)(?:\s*кг)?\)\s*[*×]\s*([\d.]+)₽\/100гр\s*=\s*([\d.]+)\s*₽/;
   const reApproxFull = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   const reQtyMulti = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*×\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
   const reQtySingle = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
@@ -4755,7 +4827,9 @@ async function runVerifyOrder() {
       updateCartCount();
       renderCart();
       renderProducts();
-      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.</div>`;
+      const deliveryFilled = parseAndFillDelivery(text);
+      renderCart(); // повторно — чтобы отразить только что заполненные поля доставки
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.${deliveryFilled ? ' Данные доставки и контакты тоже подставлены.' : ''}</div>`;
     } else {
       rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
     }
