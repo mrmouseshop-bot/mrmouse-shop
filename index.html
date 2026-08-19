@@ -168,11 +168,12 @@
   .product-card.manager-row .mgr-name-row .prod-meta { font-size: 0.65rem; color: var(--gray); }
   .product-card.manager-row .mgr-specs-row {
     grid-area: specs;
-    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
     font-size: 0.62rem;
   }
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; }
-  .product-card.manager-row .mgr-cart-col { grid-area: cart; }
+  .product-card.manager-row .mgr-specs-row .manager-copy-btn { margin-top: 2px; }
+  .product-card.manager-row .mgr-cart-col { grid-area: cart; margin-left: -18px; }
   .product-card.manager-row .prod-cart-summary { font-size: 0.62rem; padding: 3px 6px; align-items: center; }
   .mgr-cart-right {
     display: flex;
@@ -205,10 +206,10 @@
   .product-card.manager-row .mgr-counters { grid-area: counters; }
   .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
   .product-card.manager-row .counter-explain,
-  .product-card.manager-row .portion-hint,
-  .product-card.manager-row .weight-min-note { display: none; } /* пояснения — лишние для менеджера, экономим ширину */
+  .product-card.manager-row .weight-min-note { display: none; } /* длинные пояснения — лишние для менеджера, экономим место */
+  .product-card.manager-row .portion-hint { font-size: 0.55rem; margin-left: 4px; }
   .product-card.manager-row .weight-stepper { display: flex; align-items: center; }
-  .product-card.manager-row .weight-input { width: 55px; }
+  .product-card.manager-row .weight-input { width: 72px; }
   .manager-bar-label {
     color: #fff;
     font-size: 0.68rem;
