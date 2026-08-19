@@ -4633,25 +4633,43 @@ function findProductByName(name) {
   return products.find(p => fuzzyIncludes(normalizeSearch(p.name), normalized)) || null;
 }
 
-function runVerifyOrder() {
+async function runVerifyOrder() {
   const text = document.getElementById('verifyOrderInput').value;
   const resultsEl = document.getElementById('verifyOrderResults');
   if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line">Вставьте текст заказа</div>'; return; }
 
-  // Пропускаем служебные строки вроде "    Куски: 300гр, 350гр" — это
-  // продолжение предыдущей позиции, не отдельный товар
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('Куски:'));
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const results = [];
+  // Сюда же параллельно собираем реальную корзину — по каждой распознанной
+  // и найденной в каталоге позиции. "Куски:" — служебная строка-продолжение
+  // предыдущей весовой позиции (несколько разных кусков), а не своя строка
+  const rebuiltCart = [];
+  let lastWeightResult = null; // на случай следующей строки "Куски: ..."
 
-  // Форматы строк — ровно те, что выдаёт buildOrderText(), самый специфичный
-  // формат проверяем первым, чтобы не спутать с более общим
   const reWeight = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*\(([\d.]+)\)\s*\*\s*([\d.]+)₽\/100гр\s*=\s*([\d.]+)\s*₽/;
   const reApproxFull = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
   const reQtyMulti = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*×\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
   const reQtySingle = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
+  const reKuski = /^Куски:\s*(.+)$/;
 
-  for (const rawLine of lines) {
+  for (const rawLine of rawLines) {
     let m;
+
+    if ((m = reKuski.exec(rawLine))) {
+      // Продолжение предыдущей весовой позиции — перезаписываем её единственный
+      // кусок на реальный список разных кусков, как было у клиента изначально
+      if (lastWeightResult) {
+        const parts = m[1].split(',').map(s => s.trim());
+        const pieces = parts.map(part => {
+          const pm = /^(\d+(?:\.\d+)?)гр(?:\s*\(([^)]+)\))?$/.exec(part);
+          return pm ? { weight: Math.round(parseFloat(pm[1])), note: pm[2] || '' } : null;
+        }).filter(Boolean);
+        if (pieces.length) lastWeightResult.pieces = pieces;
+      }
+      continue;
+    }
+    lastWeightResult = null;
+
     if ((m = reWeight.exec(rawLine))) {
       const [, num, name, , kgStr, priceStr, claimedSumStr] = m;
       const p = findProductByName(name);
@@ -4665,6 +4683,9 @@ function runVerifyOrder() {
         num, name: p.name, status: ok ? 'ok' : 'bad',
         text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ по цене ${claimedPrice}₽/100гр — должно быть ${correctSum}₽ по цене ${p.price}₽/100гр`,
       });
+      const cartEntry = { product: p, pieces: [{ weight: grams, note: '' }], expanded: false };
+      rebuiltCart.push(cartEntry);
+      lastWeightResult = cartEntry; // если дальше идёт "Куски:" — обновим этот же объект
       continue;
     }
     if ((m = reApproxFull.exec(rawLine))) {
@@ -4679,6 +4700,7 @@ function runVerifyOrder() {
         num, name: p.name, status: ok ? 'ok' : 'bad',
         text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ — должно быть ${correctSum}₽ (${qty} шт × ${p.unitPrice}₽)`,
       });
+      rebuiltCart.push({ product: p, qty });
       continue;
     }
     if ((m = reQtyMulti.exec(rawLine))) {
@@ -4694,6 +4716,7 @@ function runVerifyOrder() {
         num, name: p.name, status: ok ? 'ok' : 'bad',
         text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ по цене ${claimedPrice}₽ — должно быть ${correctSum}₽ по цене ${p.unitPrice}₽`,
       });
+      rebuiltCart.push({ product: p, qty });
       continue;
     }
     if ((m = reQtySingle.exec(rawLine))) {
@@ -4706,6 +4729,7 @@ function runVerifyOrder() {
         num, name: p.name, status: ok ? 'ok' : 'bad',
         text: ok ? `верно — ${p.unitPrice}₽` : `заявлено ${claimedPrice}₽ — должно быть ${p.unitPrice}₽`,
       });
+      rebuiltCart.push({ product: p, qty: 1 });
       continue;
     }
     // Строка похожа на позицию (начинается с номера), но не подошла ни под
@@ -4720,11 +4744,28 @@ function runVerifyOrder() {
     return;
   }
 
+  let rebuildNote = '';
+  if (rebuiltCart.length) {
+    let proceed = true;
+    if (cart.length) {
+      proceed = await askConfirm('В корзине уже что-то есть. Заменить текущую корзину на разобранную из текста?', 'Заменить', 'Не трогать');
+    }
+    if (proceed) {
+      cart = rebuiltCart;
+      updateCartCount();
+      renderCart();
+      renderProducts();
+      rebuildNote = `<div class="verify-line" style="font-weight:600;margin-top:8px">🛒 Корзина собрана заново из текста: ${rebuiltCart.length} поз.</div>`;
+    } else {
+      rebuildNote = '<div class="verify-line" style="color:var(--gray)">Корзина не тронута.</div>';
+    }
+  }
+
   resultsEl.innerHTML = results.map(r => {
     const icon = r.status === 'ok' ? '✅' : r.status === 'bad' ? '❌' : '❓';
     const cls = r.status === 'ok' ? 'verify-line-ok' : r.status === 'bad' ? 'verify-line-bad' : 'verify-line-unknown';
     return `<div class="verify-line ${cls}">${icon} ${r.num}. ${esc(r.name)} — ${esc(r.text)}</div>`;
-  }).join('');
+  }).join('') + rebuildNote;
 }
 
 function copyPositionText(id) {
