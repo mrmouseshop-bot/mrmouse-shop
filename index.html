@@ -143,6 +143,31 @@
   body.manager-mode .prod-price-pill { padding: 4px 8px; font-size: 0.72rem; }
   body.manager-mode .prod-foot { padding-top: 4px; }
   body.manager-mode .products { gap: 6px; padding: 10px; }
+
+  /* Менеджерская карточка — один плоский ряд вместо вложенных блоков:
+     миниатюра | инфо (растягивается) | степперы | цена | кнопка.
+     Уже и короче по высоте, чем клиентская карточка — под десктоп. */
+  .product-card.manager-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+  .product-card.manager-row .prod-thumb { width: 40px; height: 40px; flex-shrink: 0; }
+  .product-card.manager-row .mgr-info { flex: 1 1 auto; min-width: 160px; }
+  .product-card.manager-row .prod-name { font-size: 0.8rem; line-height: 1.25; }
+  .product-card.manager-row .prod-meta-row { margin-top: 2px; }
+  .product-card.manager-row .prod-cart-summary { font-size: 0.62rem; padding: 3px 6px; margin-top: 3px; }
+  .product-card.manager-row .mgr-counters { flex-shrink: 0; }
+  .product-card.manager-row .prod-counters { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+  .product-card.manager-row .counter-explain,
+  .product-card.manager-row .portion-hint,
+  .product-card.manager-row .weight-min-note { display: none; } /* пояснения — лишние для менеджера, экономим ширину */
+  .product-card.manager-row .weight-stepper { display: flex; align-items: center; }
+  .product-card.manager-row .weight-input { width: 55px; }
+  .product-card.manager-row .prod-price-block { flex-shrink: 0; text-align: right; }
+  .product-card.manager-row .mgr-actions { flex-shrink: 0; }
   .manager-bar-label {
     color: #fff;
     font-size: 0.68rem;
@@ -163,6 +188,7 @@
     touch-action: manipulation;
   }
   .manager-bar-btn:active { background: rgba(255,255,255,0.3); }
+  .manager-bar-btn.manager-filter-active { background: #c0392b; border-color: #c0392b; }
   .manager-bar-exit { background: none; border: none; opacity: 0.7; }
 
   .quick-order-box { max-width: 480px; width: 92%; text-align: left; }
@@ -949,6 +975,9 @@
     flex-direction: column;
   }
   .cart-drawer.open { transform: translateX(-50%) translateY(0); }
+  /* Менеджер — каталог у нас уже широкий под десктоп (1100px), узкая
+     мобильная корзина смотрелась бы странно посреди широкого экрана */
+  body.manager-mode .cart-drawer { max-width: 900px; }
 
   .drawer-handle { width: 40px; height: 4px; background: var(--light-border); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
   .drawer-header {
@@ -1317,6 +1346,14 @@
   .banner-dot.active { background: #fff; }
 
   .search-wrap { padding: 12px 16px 0; position: relative; }
+  /* Менеджер — строка поиска всегда на виду, не уезжает при скролле каталога */
+  body.manager-mode .search-wrap {
+    position: sticky;
+    top: 60px; /* высота шапки */
+    background: var(--cream);
+    z-index: 90;
+    padding-bottom: 10px;
+  }
   .search-input {
     width: 100%; padding: 10px 62px 10px 14px; border: 1.5px solid var(--light-border); border-radius: 10px;
     font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: var(--dark); background: #fff; outline: none;
@@ -1440,6 +1477,7 @@
   <span class="manager-bar-label">👔 Режим менеджера</span>
   <button class="manager-bar-btn" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
   <button class="manager-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
+  <button class="manager-bar-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Только мало/бронь</button>
   <button class="manager-bar-btn manager-bar-exit" onclick="exitManagerMode()">Выйти</button>
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
@@ -1847,6 +1885,15 @@ function exitManagerMode() {
   // был ?manager, режим включился бы заново мгновенно после перезагрузки.
   // Переходим на чистый адрес без параметров вместо простого reload.
   location.href = location.pathname;
+}
+
+// Быстрый фильтр менеджера — показать только то, что требует внимания
+// прямо сейчас (мало осталось или частично забронировано)
+let managerLowStockFilterOn = false;
+function toggleManagerLowStockFilter() {
+  managerLowStockFilterOn = !managerLowStockFilterOn;
+  document.getElementById('managerLowStockBtn')?.classList.toggle('manager-filter-active', managerLowStockFilterOn);
+  renderProducts();
 }
 
 // ---- Правила заказа на развес: минимум 300г, шаг 50г (вес не ограничен сверху) ----
@@ -2927,6 +2974,10 @@ function renderProducts() {
   const selectedAgings = [...document.querySelectorAll('.aging-check:checked')].map(el => el.value);
 
   function passesFilters(p) {
+    // Менеджерский быстрый фильтр — показывать только то, что требует
+    // внимания прямо сейчас (мало осталось или частично забронировано)
+    if (managerLowStockFilterOn && !(p.isLowStock || p.isReserved)) return false;
+
     // Тип: весовые (режем под заказ) vs штучные заводские (flat/approxPiece)
     const isWeightType = p.priceMode === 'weight';
     if (isWeightType && !typeWeightOn) return false;
@@ -3065,10 +3116,11 @@ function renderProductCards(items) {
         ? `<button class="manager-copy-btn" onclick="copyPositionText(${p.id})">📋 Копировать</button>`
         : '';
 
-      let controlsHtml = '';
+      let countersHtml = '';
+      let actionsHtml = '';
       let cartSummaryHtml = '';
       if (!p.inStock) {
-        controlsHtml = `<div class="prod-side-actions"><button class="add-btn" disabled title="Нет в наличии">✕</button></div>`;
+        actionsHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
       } else if (p.weighted) {
         const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
@@ -3089,7 +3141,7 @@ function renderProductCards(items) {
         const resetBtn = inCart
           ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`
           : '';
-        controlsHtml = `
+        countersHtml = `
           <div class="prod-counters">
             <div class="weight-group">
               <div class="weight-stepper">
@@ -3109,16 +3161,13 @@ function renderProductCards(items) {
             </div>
             <div class="counter-explain">— если хочется ровные классические куски</div>
           </div>
-          <div class="prod-side-actions">
-            ${resetBtn}
-            <button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>
-          </div>
         `;
+        actionsHtml = `${resetBtn}<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
       } else {
         if (inCart) {
           const sum = p.unitPrice * cartItem.qty;
           cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
-          controlsHtml = `
+          countersHtml = `
             <div class="prod-counters">
               <div class="qty-controls">
                 <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
@@ -3126,13 +3175,43 @@ function renderProductCards(items) {
                 <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
               </div>
             </div>
-            <div class="prod-side-actions">
-              <button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>
-            </div>
           `;
+          actionsHtml = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
         } else {
-          controlsHtml = `<div class="prod-side-actions"><button class="add-btn" onclick="addFixed(${p.id})">в корзину</button></div>`;
+          actionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         }
+      }
+
+      if (isManagerMode()) {
+        // Менеджерская карточка — всё в один ряд: миниатюра, инфо, степперы,
+        // цена, кнопка. Без вложенности prod-top-row/prod-foot клиентской
+        // версии — там степперы и кнопка физически лежат в разных строках,
+        // на десктопе это просто лишняя высота на каждую позицию.
+        html += `
+          <div class="product-card manager-row ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
+            <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
+            <div class="mgr-info">
+              <div class="prod-name">${esc(p.name)}</div>
+              <div class="prod-meta-row">
+                <div class="prod-meta">${p.country} ${p.minQty ? '· ' + esc(p.minQty) : ''}</div>
+                ${(p.isNew || p.isSale || p.notCut || p.isExpiringSoon || (p.inStock && p.isLowStock) || p.isReserved) ? `<div class="prod-badges">
+                  ${p.isNew ? '<span class="badge-new">new</span>' : ''}
+                  ${p.isSale ? '<span class="badge-sale">sale</span>' : ''}
+                  ${p.notCut ? '<span class="badge-notcut">*не режем</span>' : ''}
+                  ${p.isExpiringSoon ? `<span class="badge-expiring">⏰ ${p.daysLeft} дн.</span>` : ''}
+                  ${(p.inStock && p.isLowStock) ? '<span class="badge-lowstock">мало</span>' : ''}
+                  ${p.isReserved ? '<span class="badge-reserved">бронь</span>' : ''}
+                </div>` : ''}
+              </div>
+              ${cartSummaryHtml}
+              ${managerCopyBtn}
+            </div>
+            <div class="mgr-counters">${countersHtml}</div>
+            ${priceBlockHtml}
+            <div class="mgr-actions">${actionsHtml}</div>
+          </div>
+        `;
+        continue;
       }
 
       html += `
@@ -3169,7 +3248,7 @@ function renderProductCards(items) {
           </div>
           <div class="prod-foot">
             ${cartSummaryHtml}
-            <div class="prod-action">${controlsHtml}</div>
+            <div class="prod-action">${countersHtml}<div class="prod-side-actions">${actionsHtml}</div></div>
           </div>
         </div>
       `;
@@ -5016,6 +5095,9 @@ if (isManagerMode()) {
   // отдельным полям, а просто фиксирует всё одним текстом от клиента
   document.getElementById('deliverySection').style.display = 'none';
   document.getElementById('managerDeliverySection').style.display = 'block';
+  // Строка поиска сразу готова к вводу — на десктопе клавиатура всегда
+  // физическая, всплывающей экранной клавиатуры можно не бояться
+  document.getElementById('searchInput')?.focus();
 }
 // Раньше здесь был renderCart() "на всякий случай" — но он вызывает
 // updateCartCount(), а тот сохраняет корзину в localStorage. Если вызвать
