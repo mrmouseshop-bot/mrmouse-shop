@@ -173,7 +173,24 @@
   }
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; }
   .product-card.manager-row .mgr-cart-col { grid-area: cart; }
-  .product-card.manager-row .prod-cart-summary { font-size: 0.62rem; padding: 3px 6px; }
+  .product-card.manager-row .prod-cart-summary { font-size: 0.62rem; padding: 3px 6px; align-items: center; }
+  .mgr-cart-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .mgr-cart-right .prod-reset-btn {
+    font-size: 0.58rem;
+    padding: 3px 8px;
+  }
+  /* Менеджеру отправлять заказ себе же в Telegram/WhatsApp/MAX незачем —
+     нужен только готовый текст, который дальше руками относят клиенту */
+  body.manager-mode .send-tg,
+  body.manager-mode .send-wa,
+  body.manager-mode .send-max { display: none; }
+  body.manager-mode .send-buttons { grid-template-columns: 1fr; }
   .product-card.manager-row .mgr-counters { grid-area: counters; }
   .product-card.manager-row .prod-counters { display: flex; flex-direction: row; gap: 8px; align-items: center; }
   .product-card.manager-row .counter-explain,
@@ -1492,7 +1509,7 @@
   <span class="manager-bar-label">👔 Режим менеджера</span>
   <button class="manager-bar-btn" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
   <button class="manager-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
-  <button class="manager-bar-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Только мало/бронь</button>
+  <button class="manager-bar-btn" id="managerLowStockBtn" onclick="toggleManagerLowStockFilter()">⚠️ Мало/Бронь/Просрок</button>
   <button class="manager-bar-btn manager-bar-exit" onclick="exitManagerMode()">Выйти</button>
 </div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
@@ -2120,7 +2137,7 @@ let products = [];
 // Список разделов зашит заранее — кнопки видны сразу при открытии страницы,
 // ещё до того как подгрузятся данные из NocoDB. Сами товары просто заполняют
 // эти разделы по мере загрузки.
-const STATIC_CATS = ["Все", "🔥 Акции", "🆕 NEW", "⏰ УСПЕЙТЕ!", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея", "Подарочный бокс", "Доп."];
+const STATIC_CATS = ["Все", "🔥 Акции", "🆕 NEW", "Сыры", "Хамон/Нарезки", "Фуэт/Колбасы", "Фуа Гра", "Бакалея", "Подарочный бокс", "Доп."];
 let CATS = STATIC_CATS.slice();
 let activeCategory = "Все";
 let cart = []; // {product, qty, weight}
@@ -2522,7 +2539,7 @@ function isCheeseCategory(cat) {
 
 // Псевдо-категории — сквозные фильтры, а не настоящие разделы каталога,
 // подкатегории у них никогда не показываем
-const PSEUDO_CATEGORIES = ["Все", "🔥 Акции", "🆕 NEW", "⏰ УСПЕЙТЕ!"];
+const PSEUDO_CATEGORIES = ["Все", "🔥 Акции", "🆕 NEW"];
 
 // Подкатегории теперь работают для ЛЮБОЙ настоящей категории автоматически:
 // если хотя бы у одного товара в ней заполнено поле Subcategory — вкладки
@@ -2742,12 +2759,8 @@ function dismissOfflinePrompt() {
 
 function renderCategories() {
   const el = document.getElementById('categories');
-  const isSpecial = c => c === "🔥 Акции" || c === "⏰ УСПЕЙТЕ!" || c === "🆕 NEW";
-  // "Успейте" — скрываем саму вкладку, если сейчас нет ни одного товара
-  // с истекающим сроком годности (а не просто показываем пустой раздел)
-  const hasExpiring = products.some(p => p.isExpiringSoon);
-  const visibleCats = CATS.filter(c => c !== "⏰ УСПЕЙТЕ!" || hasExpiring);
-  el.innerHTML = visibleCats.map(c => `
+  const isSpecial = c => c === "🔥 Акции" || c === "🆕 NEW";
+  el.innerHTML = CATS.map(c => `
     <button class="cat-btn ${isSpecial(c) ? 'cat-btn-special' : ''} ${c===activeCategory?'active':''}" onclick="setCategory('${c.replace(/'/g,"\\'")}')">${esc(c)}</button>
   `).join('');
   renderSubcategories();
@@ -2991,7 +3004,7 @@ function renderProducts() {
   function passesFilters(p) {
     // Менеджерский быстрый фильтр — показывать только то, что требует
     // внимания прямо сейчас (мало осталось или частично забронировано)
-    if (managerLowStockFilterOn && !(p.isLowStock || p.isReserved)) return false;
+    if (managerLowStockFilterOn && !(p.isLowStock || p.isReserved || p.isExpiringSoon)) return false;
 
     // Тип: весовые (режем под заказ) vs штучные заводские (flat/approxPiece)
     const isWeightType = p.priceMode === 'weight';
@@ -3018,11 +3031,12 @@ function renderProducts() {
 
   // Пока идёт поиск — ищем по всему ассортименту, игнорируя выбранный
   // раздел/подкатегорию. Без поиска — обычная навигация по разделам.
-  // «🔥 Акции», «🆕 NEW» и «⏰ УСПЕЙТЕ!» — отдельные сквозные разделы: показывают товары
+  // «🔥 Акции» и «🆕 NEW» — отдельные сквозные разделы: показывают товары
   // с нужной пометкой из ЛЮБОЙ категории, сгруппированные по ней же.
+  // ("Успейте" убрана из клиентской версии — её смысл теперь доступен
+  // только менеджеру через фильтр "Мало/Бронь/Просрок")
   const saleView = !search && activeCategory === "🔥 Акции";
   const newView = !search && activeCategory === "🆕 NEW";
-  const expiringView = !search && activeCategory === "⏰ УСПЕЙТЕ!";
   // Нечёткий поиск (допуск на опечатки) включается, только если точное
   // совпадение вообще ничего не нашло — например, "пармизан" вместо
   // "пармезан". Если хоть один товар нашёлся точно — им и доверяем.
@@ -3038,22 +3052,19 @@ function renderProducts() {
       ? (activeSubcat ? [activeSubcat] : [...new Set(products.filter(p => p.isSale).map(p => p.cat))])
       : newView
         ? (activeSubcat ? [activeSubcat] : [...new Set(products.filter(p => p.isNew).map(p => p.cat))])
-        : expiringView
-          ? [...new Set(products.filter(p => p.isExpiringSoon).map(p => p.cat))]
-          : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
+        : (activeCategory === "Все" ? [...new Set(products.map(p=>p.cat))] : [activeCategory]);
 
   let html = '';
   let found = 0;
 
   function matchItem(p, cat) {
-    const applySubcat = !search && !saleView && !newView && !expiringView && activeCategory !== "Все" && hasSubcats(cat) && activeSubcat;
+    const applySubcat = !search && !saleView && !newView && activeCategory !== "Все" && hasSubcats(cat) && activeSubcat;
     const matchCat = p.cat === cat;
     const matchSearch = matchesSearchText(p);
     const matchSubcat = !applySubcat || p.subcat === activeSubcat;
     const matchSale = !saleView || p.isSale;
     const matchNew = !newView || p.isNew;
-    const matchExpiring = !expiringView || p.isExpiringSoon;
-    return matchCat && matchSearch && matchSubcat && matchSale && matchNew && matchExpiring && passesFilters(p);
+    return matchCat && matchSearch && matchSubcat && matchSale && matchNew && passesFilters(p);
   }
 
   if (sortMode) {
@@ -3134,8 +3145,11 @@ function renderProductCards(items) {
       let countersHtml = '';
       let actionsHtml = '';
       let cartSummaryHtml = '';
+      let mgrCartSummaryHtml = '';
+      let mgrActionsHtml = '';
       if (!p.inStock) {
         actionsHtml = `<button class="add-btn" disabled title="Нет в наличии">✕</button>`;
+        mgrActionsHtml = actionsHtml;
       } else if (p.weighted) {
         const base = p.minWeightGrams || MIN_WEIGHT;
         const minNote = p.minWeightGrams
@@ -3146,16 +3160,19 @@ function renderProductCards(items) {
         // Несколько кусков разного веса, добавленных по очереди — показываем
         // подробную раскладку (как в корзине), а не просто суммарный вес,
         // иначе не видно, как именно покупатель успел их разбить
+        const resetBtn = inCart
+          ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`
+          : '';
         if (inCart && cartWeight) {
           const sum = Math.round(p.price * cartWeight / 100);
           const breakdown = pieces.length > 1
             ? `${formatPiecesBreakdown(pieces)} — итого ${cartWeight}гр`
             : `${cartWeight}гр${pieces[0]?.note ? ' (' + pieces[0].note + ')' : ''}`;
           cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          // Менеджерский вариант — цена и "Убрать" сложены в правую колонку
+          // внутри того же серого блока, а не рядом со степперами
+          mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${breakdown}</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
         }
-        const resetBtn = inCart
-          ? `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`
-          : '';
         countersHtml = `
           <div class="prod-counters">
             <div class="weight-group">
@@ -3178,10 +3195,15 @@ function renderProductCards(items) {
           </div>
         `;
         actionsHtml = `${resetBtn}<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
+        // У менеджера действие всегда одно — "в корзину" (можно доложить
+        // ещё), "Убрать" уже переехало в сводку по корзине выше
+        mgrActionsHtml = `<button class="add-btn" onclick="addWeighted(${p.id})">в корзину</button>`;
       } else {
         if (inCart) {
           const sum = p.unitPrice * cartItem.qty;
+          const resetBtn = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
           cartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><span class="prod-cart-summary-price">${sum}₽</span></div>`;
+          mgrCartSummaryHtml = `<div class="prod-cart-summary"><span>В корзине: ${cartItem.qty} шт × ${p.unitPrice}₽</span><div class="mgr-cart-right"><span class="prod-cart-summary-price">${sum}₽</span>${resetBtn}</div></div>`;
           countersHtml = `
             <div class="prod-counters">
               <div class="qty-controls">
@@ -3191,9 +3213,11 @@ function renderProductCards(items) {
               </div>
             </div>
           `;
-          actionsHtml = `<button class="prod-reset-btn" onclick="removeFromCart(${p.id})" title="Убрать из корзины">✕ Убрать</button>`;
+          actionsHtml = resetBtn;
+          mgrActionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
         } else {
           actionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
+          mgrActionsHtml = actionsHtml;
         }
       }
 
@@ -3227,10 +3251,10 @@ function renderProductCards(items) {
               ${p.bestBefore ? `<span class="prod-specs">Годен до ${esc(p.bestBefore)}</span>` : ''}
               ${managerCopyBtn}
             </div>
-            <div class="mgr-cart-col">${cartSummaryHtml}</div>
+            <div class="mgr-cart-col">${mgrCartSummaryHtml}</div>
             <div class="mgr-counters">${countersHtml}</div>
             ${priceBlockHtml}
-            <div class="mgr-actions">${actionsHtml}</div>
+            <div class="mgr-actions">${mgrActionsHtml}</div>
           </div>
         `;
         continue;
@@ -3948,7 +3972,7 @@ function renderCart() {
 
   // Группируем по категориям (в том же порядке, что и в каталоге), чтобы
   // корзина не превращалась в кашу из вперемешку добавленных товаров
-  const catOrder = STATIC_CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "🆕 NEW" && c !== "⏰ УСПЕЙТЕ!");
+  const catOrder = STATIC_CATS.filter(c => c !== "Все" && c !== "🔥 Акции" && c !== "🆕 NEW");
   const sortedCart = [...cart].sort((a, b) => {
     const ia = catOrder.indexOf(a.product.cat);
     const ib = catOrder.indexOf(b.product.cat);
