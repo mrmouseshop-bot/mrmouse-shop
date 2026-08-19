@@ -150,7 +150,7 @@
      сводка по корзине, степперы, цена+кнопка (одной колонкой, цена сверху) */
   .product-card.manager-row {
     display: grid;
-    grid-template-columns: 40px minmax(140px, 1.3fr) minmax(110px, 1fr) auto auto;
+    grid-template-columns: 40px minmax(120px, 1fr) minmax(180px, 1.6fr) auto auto;
     grid-template-rows: auto auto;
     grid-template-areas:
       "thumb name  cart counters priceaction"
@@ -174,17 +174,18 @@
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; }
   .product-card.manager-row .mgr-specs-row .manager-copy-btn { margin-top: 2px; }
   .product-card.manager-row .mgr-cart-col { grid-area: cart; margin-left: -18px; }
-  .product-card.manager-row .prod-cart-summary { font-size: 0.62rem; padding: 3px 6px; align-items: center; }
+  .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 12px 16px; min-height: 60px; align-items: center; }
   .mgr-cart-right {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 4px;
+    gap: 6px;
     flex-shrink: 0;
   }
+  .mgr-cart-right .prod-cart-summary-price { font-size: 0.85rem; }
   .mgr-cart-right .prod-reset-btn {
-    font-size: 0.58rem;
-    padding: 3px 8px;
+    font-size: 0.62rem;
+    padding: 4px 10px;
   }
   /* Цена и кнопка "в корзину" — одна колонка сетки, цена сверху, кнопка снизу */
   .product-card.manager-row .mgr-price-action {
@@ -3236,11 +3237,6 @@ function renderProductCards(items) {
         // миниатюра | название+флаг+бейджи \ характеристики+годен до+копипаст
         // дальше в отдельных колонках (растянуты на обе строки по высоте):
         // сводка по корзине, степперы, цена, кнопка "в корзину"
-        const specsLine = [
-          p.fat && `Жирность ${esc(p.fat)}`,
-          p.aging && `Выдержка ${esc(p.aging)}`,
-          p.milk && esc(p.milk),
-        ].filter(Boolean).join(' · ');
         html += `
           <div class="product-card manager-row ${!p.inStock?'out-of-stock':''}" data-pid="${p.id}">
             <div class="prod-thumb">${p.photo ? `<img loading="lazy" decoding="async" width="130" height="130" src="${p.photo}" data-fallbacks="${p.photoList.slice(1).map(encodeURIComponent).join(',')}" onerror="handleImgError(this)" alt="">` : '<span class="thumb-placeholder">🧀</span>'}</div>
@@ -3257,7 +3253,9 @@ function renderProductCards(items) {
               ` : ''}
             </div>
             <div class="mgr-specs-row">
-              ${specsLine ? `<span class="prod-specs">${specsLine}</span>` : ''}
+              ${p.fat ? `<span class="prod-specs">Жирность ${esc(p.fat)}</span>` : ''}
+              ${p.aging ? `<span class="prod-specs">Выдержка ${esc(p.aging)}</span>` : ''}
+              ${p.milk ? `<span class="prod-specs">${esc(p.milk)}</span>` : ''}
               ${p.bestBefore ? `<span class="prod-specs">Годен до ${esc(p.bestBefore)}</span>` : ''}
               ${managerCopyBtn}
             </div>
