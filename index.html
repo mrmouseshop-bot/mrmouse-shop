@@ -144,17 +144,17 @@
   body.manager-mode .prod-foot { padding-top: 4px; }
   body.manager-mode .products { gap: 6px; padding: 10px; }
 
-  /* Менеджерская карточка — сетка 2 строки × 6 колонок:
+  /* Менеджерская карточка — сетка 2 строки × 5 колонок:
      миниатюра | название+флаг+бейджи \ характеристики+годен до+копипаст
      дальше в отдельных колонках, растянутых по высоте на обе строки:
-     сводка по корзине, степперы, цена, кнопка "в корзину" */
+     сводка по корзине, степперы, цена+кнопка (одной колонкой, цена сверху) */
   .product-card.manager-row {
     display: grid;
-    grid-template-columns: 40px minmax(140px, 1.3fr) minmax(110px, 1fr) auto auto auto;
+    grid-template-columns: 40px minmax(140px, 1.3fr) minmax(110px, 1fr) auto auto;
     grid-template-rows: auto auto;
     grid-template-areas:
-      "thumb name  cart counters price action"
-      "thumb specs cart counters price action";
+      "thumb name  cart counters priceaction"
+      "thumb specs cart counters priceaction";
     align-items: center;
     column-gap: 10px;
     row-gap: 2px;
@@ -185,6 +185,17 @@
     font-size: 0.58rem;
     padding: 3px 8px;
   }
+  /* Цена и кнопка "в корзину" — одна колонка сетки, цена сверху, кнопка снизу */
+  .product-card.manager-row .mgr-price-action {
+    grid-area: priceaction;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; }
+  .product-card.manager-row .mgr-price-action .prod-price-pill,
+  .product-card.manager-row .mgr-price-action .add-btn { text-align: center; }
   /* Менеджеру отправлять заказ себе же в Telegram/WhatsApp/MAX незачем —
      нужен только готовый текст, который дальше руками относят клиенту */
   body.manager-mode .send-tg,
@@ -192,14 +203,12 @@
   body.manager-mode .send-max { display: none; }
   body.manager-mode .send-buttons { grid-template-columns: 1fr; }
   .product-card.manager-row .mgr-counters { grid-area: counters; }
-  .product-card.manager-row .prod-counters { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+  .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
   .product-card.manager-row .counter-explain,
   .product-card.manager-row .portion-hint,
   .product-card.manager-row .weight-min-note { display: none; } /* пояснения — лишние для менеджера, экономим ширину */
   .product-card.manager-row .weight-stepper { display: flex; align-items: center; }
   .product-card.manager-row .weight-input { width: 55px; }
-  .product-card.manager-row .prod-price-block { grid-area: price; text-align: right; }
-  .product-card.manager-row .mgr-actions { grid-area: action; }
   .manager-bar-label {
     color: #fff;
     font-size: 0.68rem;
@@ -3253,8 +3262,10 @@ function renderProductCards(items) {
             </div>
             <div class="mgr-cart-col">${mgrCartSummaryHtml}</div>
             <div class="mgr-counters">${countersHtml}</div>
-            ${priceBlockHtml}
-            <div class="mgr-actions">${mgrActionsHtml}</div>
+            <div class="mgr-price-action">
+              ${priceBlockHtml}
+              <div class="mgr-actions">${mgrActionsHtml}</div>
+            </div>
           </div>
         `;
         continue;
@@ -5133,6 +5144,11 @@ restoreDeliveryDetails();
 if (isManagerMode()) {
   document.getElementById('managerBar').classList.add('show');
   document.body.classList.add('manager-mode');
+  // Менеджеру должен открываться сразу полный каталог, а не раздел NEW
+  // (который клиенту по умолчанию удобнее видеть первым)
+  activeCategory = 'Все';
+  activeSubcat = null;
+  renderCategories();
   // Чисто клиентский маркетинг — менеджеру только мешает, убираем сразу
   document.getElementById('bannerCarousel').style.display = 'none';
   document.querySelector('.telegram-mini-bar')?.remove();
