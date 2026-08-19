@@ -21,8 +21,8 @@
 <meta name="twitter:image" content="https://mrmouseshop-bot.github.io/mrmouseshop/icons/og-image.jpg">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="photos.js?v=d736b11ae1" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
-<script src="banners.js?v=98266b3690" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
+<script src="photos.js" onerror="window.PHOTO_CACHE = window.PHOTO_CACHE || {}"></script>
+<script src="banners.js" onerror="window.BANNER_CACHE = window.BANNER_CACHE || []"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -118,6 +118,73 @@
     width: 100%;
     text-align: center;
   }
+
+  .manager-bar {
+    background: #5b3a8c;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .manager-bar.show { display: flex; }
+  .manager-bar-label {
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-family: 'Montserrat', sans-serif;
+    margin-right: 4px;
+  }
+  .manager-bar-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-family: 'Montserrat', sans-serif;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .manager-bar-btn:active { background: rgba(255,255,255,0.3); }
+  .manager-bar-exit { background: none; border: none; opacity: 0.7; }
+
+  .quick-order-box { max-width: 480px; width: 92%; text-align: left; }
+  .quick-order-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .quick-order-close {
+    background: none; border: none; font-size: 1.1rem; cursor: pointer;
+    color: var(--gray); padding: 0 4px;
+  }
+  .quick-order-results { max-height: 45vh; overflow-y: auto; }
+  .quick-order-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid var(--light-border);
+  }
+  .quick-order-row:last-child { border-bottom: none; }
+  .quick-order-name { flex: 1; font-size: 0.78rem; color: var(--dark); min-width: 0; }
+  .quick-order-price { font-size: 0.68rem; color: var(--wine); font-weight: 600; }
+  .quick-order-input {
+    width: 60px; padding: 6px; border: 1.5px solid var(--light-border);
+    border-radius: 6px; font-size: 0.75rem; text-align: center;
+  }
+  .quick-order-add {
+    background: var(--dark); color: var(--gold); border: none;
+    border-radius: 6px; padding: 7px 10px; font-size: 0.68rem;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .verify-order-results { margin-top: 10px; max-height: 40vh; overflow-y: auto; }
+  .verify-line { padding: 7px 0; border-bottom: 1px solid var(--light-border); font-size: 0.72rem; }
+  .verify-line:last-child { border-bottom: none; }
+  .verify-line-ok { color: #2e7d32; }
+  .verify-line-bad { color: #c0392b; font-weight: 600; }
+  .verify-line-unknown { color: var(--gray); font-style: italic; }
 
   .pdf-mini-bar {
     background: #70a83d;
@@ -426,6 +493,18 @@
     text-underline-offset: 2px;
     cursor: pointer;
     padding: 2px 0;
+    touch-action: manipulation;
+  }
+  .manager-copy-btn {
+    background: none;
+    border: none;
+    color: #5b3a8c;
+    font-size: 0.6rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    padding: 2px 0;
+    margin-left: 8px;
     touch-action: manipulation;
   }
 
@@ -1343,6 +1422,12 @@
 <div class="telegram-mini-bar">
   <a class="telegram-mini-link" href="https://t.me/MisterMouseCheese" target="_blank" rel="noopener">✈️ Подписаться в Telegram</a>
 </div>
+<div class="manager-bar" id="managerBar" style="display:none">
+  <span class="manager-bar-label">👔 Режим менеджера</span>
+  <button class="manager-bar-btn" onclick="openQuickOrder()">⚡ Быстрый заказ</button>
+  <button class="manager-bar-btn" onclick="openVerifyOrder()">🔍 Проверить детализацию</button>
+  <button class="manager-bar-btn manager-bar-exit" onclick="exitManagerMode()">Выйти</button>
+</div>
 <div class="offline-snapshot-banner" id="offlineSnapshotBanner"></div>
 <header>
   <div class="logo">Mr.<span>Mouse</span></div>
@@ -1606,6 +1691,32 @@
   </div>
 </div>
 
+<div class="confirm-overlay" id="quickOrderModal">
+  <div class="confirm-box quick-order-box">
+    <div class="quick-order-header">
+      <b>⚡ Быстрый заказ</b>
+      <button class="quick-order-close" onclick="closeQuickOrder()" aria-label="Закрыть">✕</button>
+    </div>
+    <input class="field-input" id="quickOrderSearch" placeholder="Название товара..."
+      oninput="renderQuickOrderResults()" style="margin-bottom:8px;">
+    <div id="quickOrderResults" class="quick-order-results"></div>
+    <button class="confirm-btn confirm-yes" style="margin-top:10px" onclick="closeQuickOrder();toggleCart();">Готово → открыть корзину</button>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="verifyOrderModal">
+  <div class="confirm-box quick-order-box">
+    <div class="quick-order-header">
+      <b>🔍 Проверить детализацию</b>
+      <button class="quick-order-close" onclick="closeVerifyOrder()" aria-label="Закрыть">✕</button>
+    </div>
+    <p style="font-size:0.68rem;color:var(--gray);margin-bottom:6px;">Вставьте текст заказа, присланный клиентом — сверим цены с актуальным каталогом.</p>
+    <textarea class="field-textarea" id="verifyOrderInput" placeholder="Вставьте сюда текст заказа..." style="min-height:100px;"></textarea>
+    <button class="confirm-btn confirm-yes" onclick="runVerifyOrder()">Проверить</button>
+    <div id="verifyOrderResults" class="verify-order-results"></div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="partsModal">
   <div class="confirm-box">
     <p id="partsModalText"></p>
@@ -1689,6 +1800,28 @@ if (new URLSearchParams(location.search).get('debug') === '1') {
 }
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
+
+// Менеджерский режим — включается один раз по специальной ссылке с
+// секретным словом, дальше запоминается на этом устройстве в localStorage.
+// Поменять слово можно, отредактировав константу ниже.
+const MANAGER_SECRET = 'сырныйменеджер2026';
+const MANAGER_FLAG_KEY = 'mrmouse_manager_v1';
+(function initManagerMode() {
+  try {
+    const urlWord = new URLSearchParams(location.search).get('manager');
+    if (urlWord && urlWord === MANAGER_SECRET) {
+      localStorage.setItem(MANAGER_FLAG_KEY, '1');
+    }
+  } catch (e) { /* не критично */ }
+})();
+function isManagerMode() {
+  try { return localStorage.getItem(MANAGER_FLAG_KEY) === '1'; }
+  catch (e) { return false; }
+}
+function exitManagerMode() {
+  try { localStorage.removeItem(MANAGER_FLAG_KEY); } catch (e) {}
+  location.reload();
+}
 
 // ---- Правила заказа на развес: минимум 300г, шаг 50г (вес не ограничен сверху) ----
 const MIN_WEIGHT = 300;
@@ -1804,11 +1937,12 @@ async function resolveWeight(rawWeight, productMinGrams, explicitPieces) {
     showToast('Введите вес в граммах');
     return null;
   }
-  // Вес, введённый вручную (в отличие от деления на равные части кнопками
-  // порций), сохраняем как есть — округляем только до целого грамма, БЕЗ
-  // округления до шага 50г. Менеджерам это нужно для точных детализаций
-  // клиентам с произвольным весом.
-  const weight = Math.round(rawWeight);
+  // Вес, введённый вручную, округляем до ближайших 5г (0.005кг) — реальная
+  // точность нарезки/весов, до целого грамма резать нереалистично. Это
+  // касается только обычных весовых товаров (Weighted) — для товаров с
+  // плавающим весом (FloatingWeight) эта функция вообще не вызывается,
+  // их вес приходит готовым числом из поля MinQty, без ручного ввода.
+  const weight = Math.round(rawWeight / 5) * 5;
   if (weight < MIN_WEIGHT) {
     showToast(`Минимальный вес — ${MIN_WEIGHT} г`);
     return null;
@@ -2893,6 +3027,18 @@ function renderProductCards(items) {
         </div>
       `;
 
+      // Для менеджера — копирование "Название - базовая цена" одной кнопкой.
+      // Всегда базовая ставка (за 100г/кг/шт), а не пересчитанная сумма под
+      // конкретный вес — так проще сверяться с прайсом на слух по телефону
+      const copyPriceText = p.priceMode === 'weight'
+        ? `${p.price}₽/${p.unit}`
+        : p.priceMode === 'approxPiece'
+          ? `${p.price}₽/${priceBaseLabel}`
+          : `${p.unitPrice}₽`;
+      const managerCopyBtn = isManagerMode()
+        ? `<button class="manager-copy-btn" onclick="copyPositionText(${p.id})">📋 Копировать</button>`
+        : '';
+
       let controlsHtml = '';
       let cartSummaryHtml = '';
       if (!p.inStock) {
@@ -2991,6 +3137,7 @@ function renderProductCards(items) {
               ${(p.isReserved && p.stockQty != null) ? `<div class="prod-specs" style="color:#4a5b8c">🔒 Свободно: ${p.publicQty}${p.weighted?'гр':'шт'} · всего в наличии: ${p.stockQty}${p.weighted?'гр':'шт'}</div>` : ''}
               ${!p.inStock ? '<div class="prod-note" style="color:#c0392b">Нет в наличии</div>' : ''}
               ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
+              ${managerCopyBtn}
               ${priceBlockHtml}
             </div>
           </div>
@@ -4373,6 +4520,230 @@ if (window.visualViewport) {
 // Модалка "Описание" — открывается по кнопке под миниатюрой на карточке.
 // Фото в полном качестве (fullPhoto) подставляется в <img> только в этот
 // момент — до этого браузер его не загружает, каталог им не нагружается
+// Менеджерская кнопка — копирует "Название - базовая цена" в буфер обмена
+// ===== Быстрый заказ (для оформления по телефонному звонку клиента) =====
+function openQuickOrder() {
+  document.getElementById('quickOrderModal').classList.add('open');
+  document.getElementById('quickOrderSearch').value = '';
+  renderQuickOrderResults();
+  document.getElementById('quickOrderSearch').focus();
+}
+
+function closeQuickOrder() {
+  document.getElementById('quickOrderModal').classList.remove('open');
+}
+
+function renderQuickOrderResults() {
+  const search = normalizeSearch(document.getElementById('quickOrderSearch').value);
+  const el = document.getElementById('quickOrderResults');
+  if (!search) {
+    el.innerHTML = '<div style="color:var(--gray);font-size:0.75rem;padding:10px 0;">Начните вводить название товара...</div>';
+    return;
+  }
+
+  // Та же логика поиска, что и в основной строке поиска (точное совпадение,
+  // а если ничего нет — нечёткое, с допуском на опечатки)
+  let matches = products.filter(p => p.inStock && normalizeSearch(p.name).includes(search));
+  if (!matches.length) {
+    matches = products.filter(p => p.inStock && fuzzyIncludes(normalizeSearch(p.name), search));
+  }
+  matches = matches.slice(0, 15);
+
+  if (!matches.length) {
+    el.innerHTML = '<div style="color:var(--gray);font-size:0.75rem;padding:10px 0;">Ничего не найдено</div>';
+    return;
+  }
+
+  el.innerHTML = matches.map(p => {
+    const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
+    const priceText = p.priceMode === 'weight'
+      ? `${p.price}₽/${p.unit}`
+      : p.priceMode === 'approxPiece'
+        ? `~${p.pieceWeightGrams}гр, ${p.price}₽/${priceBaseLabel}`
+        : `${p.unitPrice}₽`;
+    if (p.priceMode === 'weight') {
+      return `
+        <div class="quick-order-row">
+          <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
+          <input type="number" class="quick-order-input" id="qoW${p.id}" placeholder="гр" min="300" step="1"
+            onkeydown="if(event.key==='Enter'){quickOrderAddWeight(${p.id});event.preventDefault();}">
+          <button class="quick-order-add" onclick="quickOrderAddWeight(${p.id})">+</button>
+        </div>`;
+    }
+    return `
+      <div class="quick-order-row">
+        <div class="quick-order-name">${esc(p.name)}<div class="quick-order-price">${priceText}</div></div>
+        <button class="quick-order-add" onclick="quickOrderAddFixed(${p.id})">+ добавить</button>
+      </div>`;
+  }).join('');
+}
+
+// Та же самая логика брони/остатков, что и на обычной карточке — быстрый
+// заказ не в обход проверок, а просто более компактный способ их пройти
+async function quickOrderAddWeight(id) {
+  const input = document.getElementById('qoW' + id);
+  const rawWeight = input && input.value ? parseFloat(input.value) : null;
+  if (!rawWeight) { showToast('Введите вес в граммах'); return; }
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+
+  const check = checkReservationLimit(p, true, rawWeight);
+  if (check.blocked) {
+    if (check.reason === 'reserved') { openReservationModal(id, () => quickOrderAddWeight(id)); return; }
+    showToast(`Столько ${p.name} нет в наличии даже с учётом брони`);
+    return;
+  }
+
+  const result = await resolveWeight(rawWeight, p.minWeightGrams);
+  if (!result) return;
+  const existing = cart.find(c => c.product.id === id);
+  if (existing) existing.pieces.push(...result.pieces);
+  else cart.push({ product: p, pieces: [...result.pieces], expanded: false });
+  input.value = '';
+  updateCartCount();
+  showToast('Добавлено: ' + p.name);
+}
+
+// Штучные/примерные — тот же самый addFixed, что и на обычной карточке,
+// уже со всеми проверками брони внутри, ничего дублировать не нужно
+function quickOrderAddFixed(id) {
+  addFixed(id);
+}
+
+// ===== Проверка детализации, присланной клиентом (защита от подмены цены) =====
+function openVerifyOrder() {
+  document.getElementById('verifyOrderModal').classList.add('open');
+  document.getElementById('verifyOrderInput').value = '';
+  document.getElementById('verifyOrderResults').innerHTML = '';
+}
+
+function closeVerifyOrder() {
+  document.getElementById('verifyOrderModal').classList.remove('open');
+}
+
+// Ищем товар по названию из текста — сперва точное совпадение, потом частичное,
+// и только в конце — нечёткое (с допуском на опечатки), тот же принцип, что и
+// в обычном поиске по сайту
+function findProductByName(name) {
+  const normalized = normalizeSearch(name);
+  if (!normalized) return null;
+  let match = products.find(p => normalizeSearch(p.name) === normalized);
+  if (match) return match;
+  match = products.find(p => normalizeSearch(p.name).includes(normalized) || normalized.includes(normalizeSearch(p.name)));
+  if (match) return match;
+  return products.find(p => fuzzyIncludes(normalizeSearch(p.name), normalized)) || null;
+}
+
+function runVerifyOrder() {
+  const text = document.getElementById('verifyOrderInput').value;
+  const resultsEl = document.getElementById('verifyOrderResults');
+  if (!text.trim()) { resultsEl.innerHTML = '<div class="verify-line">Вставьте текст заказа</div>'; return; }
+
+  // Пропускаем служебные строки вроде "    Куски: 300гр, 350гр" — это
+  // продолжение предыдущей позиции, не отдельный товар
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('Куски:'));
+  const results = [];
+
+  // Форматы строк — ровно те, что выдаёт buildOrderText(), самый специфичный
+  // формат проверяем первым, чтобы не спутать с более общим
+  const reWeight = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*\(([\d.]+)\)\s*\*\s*([\d.]+)₽\/100гр\s*=\s*([\d.]+)\s*₽/;
+  const reApproxFull = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*=>\s*\(([\d.]+)\s*\*\s*([\d.]+)₽\/(100гр|кг)\)\s*=\s*([\d.]+)\s*₽/;
+  const reQtyMulti = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*(\d+)\s*шт\s*×\s*([\d.]+)₽\s*=\s*([\d.]+)\s*₽/;
+  const reQtySingle = /^(\d+)\.\s*(.+?)\s*(\[SALE\])?\s*—\s*([\d.]+)\s*₽\s*$/;
+
+  for (const rawLine of lines) {
+    let m;
+    if ((m = reWeight.exec(rawLine))) {
+      const [, num, name, , kgStr, priceStr, claimedSumStr] = m;
+      const p = findProductByName(name);
+      if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
+      const grams = Math.round(parseFloat(kgStr) * 1000);
+      const claimedSum = parseFloat(claimedSumStr);
+      const claimedPrice = parseFloat(priceStr);
+      const correctSum = Math.round(p.price * grams / 100);
+      const ok = claimedSum === correctSum && Math.abs(claimedPrice - p.price) < 0.01;
+      results.push({
+        num, name: p.name, status: ok ? 'ok' : 'bad',
+        text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ по цене ${claimedPrice}₽/100гр — должно быть ${correctSum}₽ по цене ${p.price}₽/100гр`,
+      });
+      continue;
+    }
+    if ((m = reApproxFull.exec(rawLine))) {
+      const [, num, name, , qtyStr, , , , claimedSumStr] = m;
+      const p = findProductByName(name);
+      if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
+      const qty = parseInt(qtyStr, 10);
+      const claimedSum = parseFloat(claimedSumStr);
+      const correctSum = p.unitPrice * qty;
+      const ok = claimedSum === correctSum;
+      results.push({
+        num, name: p.name, status: ok ? 'ok' : 'bad',
+        text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ — должно быть ${correctSum}₽ (${qty} шт × ${p.unitPrice}₽)`,
+      });
+      continue;
+    }
+    if ((m = reQtyMulti.exec(rawLine))) {
+      const [, num, name, , qtyStr, priceStr, claimedSumStr] = m;
+      const p = findProductByName(name);
+      if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
+      const qty = parseInt(qtyStr, 10);
+      const claimedSum = parseFloat(claimedSumStr);
+      const claimedPrice = parseFloat(priceStr);
+      const correctSum = p.unitPrice * qty;
+      const ok = claimedSum === correctSum && Math.abs(claimedPrice - p.unitPrice) < 0.01;
+      results.push({
+        num, name: p.name, status: ok ? 'ok' : 'bad',
+        text: ok ? `верно — ${correctSum}₽` : `заявлено ${claimedSum}₽ по цене ${claimedPrice}₽ — должно быть ${correctSum}₽ по цене ${p.unitPrice}₽`,
+      });
+      continue;
+    }
+    if ((m = reQtySingle.exec(rawLine))) {
+      const [, num, name, , priceStr] = m;
+      const p = findProductByName(name);
+      if (!p) { results.push({ num, name, status: 'unknown', text: 'Товар не найден в текущем каталоге' }); continue; }
+      const claimedPrice = parseFloat(priceStr);
+      const ok = Math.abs(claimedPrice - p.unitPrice) < 0.01;
+      results.push({
+        num, name: p.name, status: ok ? 'ok' : 'bad',
+        text: ok ? `верно — ${p.unitPrice}₽` : `заявлено ${claimedPrice}₽ — должно быть ${p.unitPrice}₽`,
+      });
+      continue;
+    }
+    // Строка похожа на позицию (начинается с номера), но не подошла ни под
+    // один известный формат — само по себе подозрительно, требует ручной проверки
+    if (/^\d+\./.test(rawLine)) {
+      results.push({ num: '?', name: rawLine, status: 'unknown', text: 'не удалось разобрать строку — проверьте вручную' });
+    }
+  }
+
+  if (!results.length) {
+    resultsEl.innerHTML = '<div class="verify-line">Не нашёл ни одной строки с товаром для проверки — вставьте полный текст заказа</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = results.map(r => {
+    const icon = r.status === 'ok' ? '✅' : r.status === 'bad' ? '❌' : '❓';
+    const cls = r.status === 'ok' ? 'verify-line-ok' : r.status === 'bad' ? 'verify-line-bad' : 'verify-line-unknown';
+    return `<div class="verify-line ${cls}">${icon} ${r.num}. ${esc(r.name)} — ${esc(r.text)}</div>`;
+  }).join('');
+}
+
+function copyPositionText(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const priceBaseLabel = p.priceBaseGrams === 1000 ? 'кг' : '100гр';
+  const priceText = p.priceMode === 'weight'
+    ? `${p.price}₽/${p.unit}`
+    : p.priceMode === 'approxPiece'
+      ? `${p.price}₽/${priceBaseLabel}`
+      : `${p.unitPrice}₽`;
+  const text = `${p.name} - ${priceText}`;
+  navigator.clipboard?.writeText(text).then(
+    () => showToast('Скопировано: ' + text),
+    () => showToast('Не удалось скопировать')
+  );
+}
+
 function openProductInfo(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
@@ -4459,6 +4830,9 @@ function renderBannerCarousel() {
 
 initTimeSelect();
 restoreDeliveryDetails();
+if (isManagerMode()) {
+  document.getElementById('managerBar').classList.add('show');
+}
 // Раньше здесь был renderCart() "на всякий случай" — но он вызывает
 // updateCartCount(), а тот сохраняет корзину в localStorage. Если вызвать
 // это ДО восстановления сохранённой корзины (см. restoreCartFromStorage
