@@ -129,6 +129,20 @@
     justify-content: center;
   }
   .manager-bar.show { display: flex; }
+
+  /* Менеджерский режим на десктопе — компактный вид, не мобильный каталог.
+     Меньше миниатюры и отступы, чтобы влезало больше позиций на экран;
+     колонка сайта шире, а не растянута под телефон */
+  body.manager-mode { max-width: 1100px; }
+  body.manager-mode .product-card { padding: 6px 10px; gap: 4px; }
+  body.manager-mode .prod-top-row { gap: 8px; }
+  body.manager-mode .prod-thumb { width: 40px; height: 40px; border-radius: 6px; }
+  body.manager-mode .thumb-placeholder { font-size: 1.1rem; }
+  body.manager-mode .prod-name { font-size: 0.85rem; }
+  body.manager-mode .prod-specs { font-size: 0.62rem; }
+  body.manager-mode .prod-price-pill { padding: 4px 8px; font-size: 0.72rem; }
+  body.manager-mode .prod-foot { padding-top: 4px; }
+  body.manager-mode .products { gap: 6px; padding: 10px; }
   .manager-bar-label {
     color: #fff;
     font-size: 0.68rem;
@@ -1533,7 +1547,7 @@
   <div class="drawer-body">
     <div id="cartBody"></div>
 
-    <div class="delivery-section">
+    <div class="delivery-section" id="deliverySection">
       <div class="delivery-methods">
         <button class="method-btn active" id="methodBtn-courier" onclick="setDeliveryMethod('courier')">Курьером</button>
         <button class="method-btn" id="methodBtn-pickup" onclick="setDeliveryMethod('pickup')">Самовывоз</button>
@@ -1591,6 +1605,18 @@
 
       <label class="field-label">Комментарий к заказу</label>
       <textarea class="field-textarea" id="commentInput" placeholder="Необязательно. Например: нестандартная просьба по нарезке — кусочки поменьше и т.п. Менеджеры часто идут навстречу!" oninput="renderCart()"></textarea>
+    </div>
+
+    <!-- Менеджерский режим: без разделов курьер/самовывоз/СДЭК — менеджер
+         сам знает стоимость доставки и просто вписывает её числом, а все
+         данные клиента (адрес, телефон, время и т.п.) — одним свободным
+         текстом, а не по отдельным полям -->
+    <div class="delivery-section" id="managerDeliverySection" style="display:none">
+      <label class="field-label">Стоимость доставки, ₽</label>
+      <input class="field-input" type="number" id="managerDeliveryCost" placeholder="0" oninput="renderCart()">
+
+      <label class="field-label" style="margin-top:14px;">Данные клиента (адрес, телефон, удобное время и т.п.)</label>
+      <textarea class="field-textarea" id="managerCustomerNotes" placeholder="Впишите всё, что нужно передать: адрес, телефон, удобное время, пожелания клиента..." style="min-height:130px;" oninput="renderCart()"></textarea>
     </div>
 
     <label class="field-label" style="margin-top:16px;">Промокод</label>
@@ -3778,6 +3804,16 @@ function computeCartTotals() {
   });
 
   const discount = percent ? Math.round(discountable * percent / 100) : 0;
+
+  // Менеджерский режим — доставка вписывается вручную, никаких способов
+  // доставки/надбавок СДЭК не считаем, это всё убрано из интерфейса
+  if (isManagerMode()) {
+    const managerCost = parseFloat(document.getElementById('managerDeliveryCost')?.value) || 0;
+    const netGoodsM = subtotal - discount;
+    const totalM = netGoodsM + managerCost;
+    return { subtotal, discount, total: totalM, percent, promoRaw, deliveryCost: managerCost, deliveryNote: '', cdekSurcharge: 0 };
+  }
+
   const delivery = computeDeliveryCost();
   const CDEK_SURCHARGE_THRESHOLD = 5000;
   const CDEK_SURCHARGE = 250;
@@ -4228,8 +4264,9 @@ function gramsToKg(g) {
 }
 
 function buildOrderText() {
-  const lines = isManagerMode()
-    ? ['📞 Заказ принят по телефону (оформлено менеджером)\n']
+  const managerMode = isManagerMode();
+  const lines = managerMode
+    ? ['Ваш заказ:\n']
     : ['Здравствуй, Mr. Mouse, мой заказ:\n'];
   let lineNum = 1;
 
@@ -4296,6 +4333,17 @@ function buildOrderText() {
   }
   lines.push(`Итого: ${total}₽`);
 
+  if (managerMode) {
+    // Менеджерский режим: без разделов курьер/самовывоз/СДЭК — просто
+    // вставляем как есть всё, что менеджер написал о клиенте одним текстом
+    const notes = document.getElementById('managerCustomerNotes').value.trim();
+    if (notes) {
+      lines.push('');
+      lines.push(notes);
+    }
+    return lines.join('\n');
+  }
+
   const phone = document.getElementById('phoneInput').value.trim();
   const express = document.getElementById('expressCheck').checked;
   const cash = document.getElementById('cashCheck').checked;
@@ -4351,6 +4399,7 @@ function buildOrderText() {
 
 function validateOrderFields() {
   if (!cart.length) { showToast('Корзина пуста'); return false; }
+  if (isManagerMode()) return true; // упрощённые поля, ничего обязательного проверять не нужно
   const phone = document.getElementById('phoneInput').value.trim();
   // Для самовывоза телефон не обязателен (но поле остаётся доступным для заполнения)
   if (!phone && deliveryMethod !== 'pickup') { showToast('Укажите номер телефона'); return false; }
@@ -4642,6 +4691,17 @@ function findProductByName(name) {
 // несколько строк (например, "Домофон 17" отдельной строкой без подписи) —
 // поэтому берём всё до следующей ИЗВЕСТНОЙ подписи, а не только одну строку.
 function parseAndFillDelivery(text) {
+  if (isManagerMode()) {
+    // В менеджерском режиме нет отдельных полей адреса/времени/телефона —
+    // просто переносим всё, что шло после "Итого:", одним куском текста
+    const idx = text.search(/Итого:\s*[\d.]+\s*₽/);
+    if (idx === -1) return false;
+    const afterTotal = text.slice(idx).replace(/^Итого:.*(\r?\n)?/, '').trim();
+    if (!afterTotal) return false;
+    document.getElementById('managerCustomerNotes').value = afterTotal;
+    return true;
+  }
+
   const NEXT_LABELS = '(?:Срочная доставка|День доставки:|Время:|Оплата:|Телефон:|Комментарий:|$)';
   let filled = false;
 
@@ -4947,9 +5007,15 @@ initTimeSelect();
 restoreDeliveryDetails();
 if (isManagerMode()) {
   document.getElementById('managerBar').classList.add('show');
+  document.body.classList.add('manager-mode');
   // Чисто клиентский маркетинг — менеджеру только мешает, убираем сразу
   document.getElementById('bannerCarousel').style.display = 'none';
   document.querySelector('.telegram-mini-bar')?.remove();
+  // Менеджеру не нужны разделы курьер/самовывоз/СДЭК со всеми полями —
+  // он сам знает, сколько будет стоить доставка, и не собирает адрес по
+  // отдельным полям, а просто фиксирует всё одним текстом от клиента
+  document.getElementById('deliverySection').style.display = 'none';
+  document.getElementById('managerDeliverySection').style.display = 'block';
 }
 // Раньше здесь был renderCart() "на всякий случай" — но он вызывает
 // updateCartCount(), а тот сохраняет корзину в localStorage. Если вызвать
