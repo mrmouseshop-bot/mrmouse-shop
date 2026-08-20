@@ -175,6 +175,7 @@
   .product-card.manager-row .mgr-price-action .manager-copy-btn { margin: 0; text-align: center; }
   .product-card.manager-row .mgr-cart-col { grid-area: cart; }
   .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 12px 16px; min-height: 60px; align-items: center; }
+  .product-card.manager-row .prod-cart-summary-empty { background: transparent; border: 1px dashed var(--light-border); color: var(--gray); font-style: italic; justify-content: center; }
   .mgr-cart-right {
     display: flex;
     flex-direction: column;
@@ -193,8 +194,11 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    justify-content: center;
     gap: 4px;
+    min-height: 105px; /* гарантируем место под ссылку+цену+кнопку, даже если строка низкая */
   }
+  .product-card.manager-row .mgr-price-action > * { flex-shrink: 0; }
   .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; align-items: center; }
   .product-card.manager-row .mgr-price-action .prod-price-pill,
   .product-card.manager-row .mgr-price-action .add-btn { text-align: center; }
@@ -205,7 +209,7 @@
   body.manager-mode .send-max { display: none; }
   body.manager-mode .send-buttons { grid-template-columns: 1fr; }
   .product-card.manager-row .mgr-counters { grid-area: counters; }
-  .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: center; }
   .product-card.manager-row .counter-explain,
   .product-card.manager-row .weight-min-note { display: none; } /* длинные пояснения — лишние для менеджера, экономим место */
   .product-card.manager-row .portion-hint { font-size: 0.62rem; margin-left: 4px; }
@@ -3235,6 +3239,12 @@ function renderProductCards(items) {
           actionsHtml = `<button class="add-btn" onclick="addFixed(${p.id})">в корзину</button>`;
           mgrActionsHtml = actionsHtml;
         }
+      }
+      // Если товара нет в корзине — колонка сводки всё равно фиксированной
+      // ширины (чтобы карточки не "плясали"), но пустой пробел выглядел бы
+      // как баг. Показываем бледную заглушку вместо голой пустоты.
+      if (isManagerMode() && !mgrCartSummaryHtml) {
+        mgrCartSummaryHtml = `<div class="prod-cart-summary prod-cart-summary-empty"><span>В корзине пока пусто</span></div>`;
       }
 
       if (isManagerMode()) {
