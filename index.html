@@ -136,7 +136,7 @@
   body.manager-mode { max-width: 1100px; }
   body.manager-mode .product-card { padding: 10px 14px; gap: 4px; }
   body.manager-mode .thumb-placeholder { font-size: 1.1rem; }
-  body.manager-mode .prod-price-pill { padding: 10px 18px; font-size: 0.95rem; }
+  body.manager-mode .prod-price-pill { padding: 6px 14px; font-size: 0.85rem; }
   body.manager-mode .products { gap: 6px; padding: 10px; }
 
   /* Менеджерская карточка — сетка 2 строки × 5 колонок:
@@ -150,7 +150,7 @@
      единую сетку по вертикали, как и положено табличному списку. */
   .product-card.manager-row {
     display: grid;
-    grid-template-columns: 58px minmax(120px, 1fr) 380px 200px 170px;
+    grid-template-columns: 58px minmax(230px, 1fr) 360px 200px 170px;
     grid-template-rows: auto auto;
     grid-template-areas:
       "thumb name  cart counters priceaction"
@@ -162,9 +162,9 @@
   .product-card.manager-row .prod-thumb { grid-area: thumb; width: 58px; height: 58px; }
   .product-card.manager-row .mgr-name-row {
     grid-area: name;
-    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    display: flex; align-items: center; flex-wrap: nowrap; gap: 6px;
   }
-  .product-card.manager-row .mgr-name-row .prod-name { font-size: 1.05rem; line-height: 1.35; }
+  .product-card.manager-row .mgr-name-row .prod-name { font-size: 1.05rem; line-height: 1.35; white-space: nowrap; }
   .product-card.manager-row .mgr-name-row .prod-meta { font-size: 0.7rem; color: var(--gray); }
   .product-card.manager-row .mgr-specs-row {
     grid-area: specs;
@@ -172,9 +172,9 @@
     font-size: 0.7rem;
   }
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; font-size: 0.7rem; }
-  .product-card.manager-row .mgr-price-action .manager-copy-btn { margin: 0; text-align: center; }
+  .product-card.manager-row .mgr-cart-col .manager-copy-btn { margin-top: 4px; }
   .product-card.manager-row .mgr-cart-col { grid-area: cart; }
-  .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 12px 16px; min-height: 60px; align-items: center; }
+  .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 8px 14px; min-height: 40px; align-items: center; }
   .product-card.manager-row .prod-cart-summary-empty { background: transparent; border: 1px dashed var(--light-border); color: var(--gray); font-style: italic; justify-content: center; }
   .mgr-cart-right {
     display: flex;
@@ -188,7 +188,7 @@
     font-size: 0.68rem;
     padding: 5px 12px;
   }
-  /* Цена и кнопка "в корзину" — одна колонка сетки, цена сверху, кнопка снизу */
+  /* Кнопка "в корзину" и цена — одна колонка сетки, кнопка сверху, цена снизу */
   .product-card.manager-row .mgr-price-action {
     grid-area: priceaction;
     display: flex;
@@ -196,7 +196,7 @@
     align-items: stretch;
     justify-content: center;
     gap: 4px;
-    min-height: 105px; /* гарантируем место под ссылку+цену+кнопку, даже если строка низкая */
+    min-height: 70px; /* гарантируем место под кнопку+цену, даже если строка низкая */
   }
   .product-card.manager-row .mgr-price-action > * { flex-shrink: 0; }
   .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; align-items: center; }
@@ -209,7 +209,7 @@
   body.manager-mode .send-max { display: none; }
   body.manager-mode .send-buttons { grid-template-columns: 1fr; }
   .product-card.manager-row .mgr-counters { grid-area: counters; }
-  .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
   .product-card.manager-row .counter-explain,
   .product-card.manager-row .weight-min-note { display: none; } /* длинные пояснения — лишние для менеджера, экономим место */
   .product-card.manager-row .portion-hint { font-size: 0.62rem; margin-left: 4px; }
@@ -3268,15 +3268,19 @@ function renderProductCards(items) {
               ` : ''}
             </div>
             <div class="mgr-specs-row">
-              ${p.fat ? `<span class="prod-specs">Жирность ${esc(p.fat)}</span>` : ''}
-              ${p.aging ? `<span class="prod-specs">Выдержка ${esc(p.aging)}</span>` : ''}
-              ${p.milk ? `<span class="prod-specs">${esc(p.milk)}</span>` : ''}
+              <span class="prod-specs">${[
+                p.fat && `Жирность ${esc(p.fat)}`,
+                p.aging && `Выдержка ${esc(p.aging)}`,
+                p.milk && esc(p.milk),
+              ].filter(Boolean).join(' · ')}</span>
               ${p.bestBefore ? `<span class="prod-specs">Годен до ${esc(p.bestBefore)}</span>` : ''}
             </div>
-            <div class="mgr-cart-col">${mgrCartSummaryHtml}</div>
+            <div class="mgr-cart-col">
+              ${mgrCartSummaryHtml}
+              ${managerCopyBtn}
+            </div>
             <div class="mgr-counters">${countersHtml}</div>
             <div class="mgr-price-action">
-              ${managerCopyBtn}
               ${priceBlockHtml}
               <div class="mgr-actions">${mgrActionsHtml}</div>
             </div>
