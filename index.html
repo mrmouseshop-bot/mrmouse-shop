@@ -135,22 +135,22 @@
      колонка сайта шире, а не растянута под телефон */
   body.manager-mode { max-width: 1100px; }
   body.manager-mode .product-card { padding: 10px 14px; gap: 4px; }
-  body.manager-mode .prod-top-row { gap: 8px; }
-  body.manager-mode .prod-thumb { width: 40px; height: 40px; border-radius: 6px; }
   body.manager-mode .thumb-placeholder { font-size: 1.1rem; }
-  body.manager-mode .prod-name { font-size: 0.85rem; }
-  body.manager-mode .prod-specs { font-size: 0.62rem; }
   body.manager-mode .prod-price-pill { padding: 10px 18px; font-size: 0.95rem; }
-  body.manager-mode .prod-foot { padding-top: 4px; }
   body.manager-mode .products { gap: 6px; padding: 10px; }
 
   /* Менеджерская карточка — сетка 2 строки × 5 колонок:
      миниатюра | название+флаг+бейджи \ характеристики+годен до+копипаст
      дальше в отдельных колонках, растянутых по высоте на обе строки:
-     сводка по корзине, степперы, цена+кнопка (одной колонкой, цена сверху) */
+     сводка по корзине, степперы, цена+кнопка (одной колонкой, цена сверху).
+     Три правые колонки — ФИКСИРОВАННОЙ ширины (не auto/minmax-до-контента):
+     иначе у разных карточек (штучный/весовой товар, в корзине/нет) правые
+     блоки оказываются разной ширины и "пляшут" влево-вправо по всему
+     списку — с фиксированной шириной все карточки выравниваются в
+     единую сетку по вертикали, как и положено табличному списку. */
   .product-card.manager-row {
     display: grid;
-    grid-template-columns: 58px minmax(120px, 1fr) minmax(180px, 420px) auto auto;
+    grid-template-columns: 58px minmax(120px, 1fr) 380px 200px 170px;
     grid-template-rows: auto auto;
     grid-template-areas:
       "thumb name  cart counters priceaction"
@@ -171,9 +171,9 @@
     display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
     font-size: 0.7rem;
   }
-  .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; }
+  .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; font-size: 0.7rem; }
   .product-card.manager-row .mgr-price-action .manager-copy-btn { margin: 0; text-align: center; }
-  .product-card.manager-row .mgr-cart-col { grid-area: cart; margin-left: -18px; }
+  .product-card.manager-row .mgr-cart-col { grid-area: cart; }
   .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 12px 16px; min-height: 60px; align-items: center; }
   .mgr-cart-right {
     display: flex;
@@ -195,7 +195,7 @@
     align-items: stretch;
     gap: 4px;
   }
-  .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; }
+  .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; align-items: center; }
   .product-card.manager-row .mgr-price-action .prod-price-pill,
   .product-card.manager-row .mgr-price-action .add-btn { text-align: center; }
   /* Менеджеру отправлять заказ себе же в Telegram/WhatsApp/MAX незачем —
