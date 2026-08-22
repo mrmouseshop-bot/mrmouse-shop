@@ -215,21 +215,20 @@
     grid-area: priceaction;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     justify-content: center;
     gap: 4px;
     min-height: 56px; /* гарантируем место под кнопку+цену, даже если строка низкая */
     min-width: 0;
   }
   .product-card.manager-row .mgr-price-action > * { flex-shrink: 0; }
-  .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; align-items: flex-end; }
+  .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; align-items: center; }
   /* Кнопка "в корзину" и плашка цены — одинаковая ширина и высота, а не
      только "друг под другом": .add-btn и так растягивается на всю ширину
      колонки (display:flex у самой кнопки), а вот .prod-price-pill — просто
      div внутри .prod-price-block с align-items:flex-end, из-за чего он
      оставался по ширине "по тексту" и не совпадал с кнопкой под ним */
   .product-card.manager-row .mgr-price-action .prod-price-pill {
-    align-self: stretch;
     box-sizing: border-box;
     height: 26px;
     display: flex;
@@ -254,9 +253,9 @@
   .product-card.manager-row .weight-min-note { display: none; } /* длинные пояснения — лишние для менеджера, экономим место */
   .product-card.manager-row .portion-hint { font-size: 0.62rem; margin-left: 4px; }
   .product-card.manager-row .weight-stepper { display: flex; align-items: center; }
-  .product-card.manager-row .weight-input { width: 83px; padding: 8px 9px; font-size: 0.8rem; }
-  .product-card.manager-row .wstep-btn { width: 29px; height: 29px; font-size: 1rem; }
-  .product-card.manager-row .portion-btn { width: 25px; height: 25px; font-size: 0.82rem; }
+  .product-card.manager-row .weight-input { width: 68px; padding: 4px 6px; font-size: 0.75rem; }
+  .product-card.manager-row .wstep-btn { width: 24px; height: 24px; font-size: 0.9rem; }
+  .product-card.manager-row .portion-btn { width: 22px; height: 22px; font-size: 0.75rem; }
   .product-card.manager-row .portion-count { font-size: 0.82rem; }
   .product-card.manager-row .weight-label { font-size: 0.78rem; }
   .product-card.manager-row .mgr-price-action .add-btn { padding: 2px 18px; font-size: 0.72rem; }
