@@ -192,7 +192,10 @@
     font-size: 0.7rem;
   }
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; font-size: 0.7rem; }
-  .product-card.manager-row .mgr-specs-line2 { display: flex; align-items: center; gap: 8px; }
+  /* align-items: baseline, а не center — при center эмодзи 📋 в кнопке
+     "Копировать прайс" (у него своя, более высокая метрика шрифта) визуально
+     смещал текст кнопки относительно простого текста "Описание" рядом */
+  .product-card.manager-row .mgr-specs-line2 { display: flex; align-items: baseline; gap: 8px; }
   .product-card.manager-row .mgr-specs-line2 .manager-copy-btn { margin-left: 0; }
   /* min-width:0 — без этого flex/grid-элемент по умолчанию не сжимается уже
      своего содержимого (см. грабли №2 в истории проекта), и на узких окнах
