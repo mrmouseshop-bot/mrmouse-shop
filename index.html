@@ -188,7 +188,7 @@
   }
   .product-card.manager-row .mgr-specs-row .prod-specs { margin: 0; font-size: 0.7rem; }
   .product-card.manager-row .mgr-specs-line2 { display: flex; align-items: center; gap: 8px; }
-  .product-card.manager-row .mgr-cart-col .manager-copy-btn { margin-top: 4px; }
+  .product-card.manager-row .mgr-specs-line2 .manager-copy-btn { margin-left: 0; }
   /* min-width:0 — без этого flex/grid-элемент по умолчанию не сжимается уже
      своего содержимого (см. грабли №2 в истории проекта), и на узких окнах
      длинная строка "В корзине: 700гр, 450гр..." распирает колонку вместо
@@ -197,7 +197,7 @@
   .product-card.manager-row .mgr-cart-col { grid-area: cart; min-width: 0; }
   .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 8px 14px; min-height: 40px; align-items: center; min-width: 0; }
   .product-card.manager-row .prod-cart-summary > span:first-child { min-width: 0; overflow-wrap: break-word; }
-  .product-card.manager-row .prod-cart-summary-empty { background: transparent; border: 1px dashed var(--light-border); color: var(--gray); font-style: italic; justify-content: center; }
+  .product-card.manager-row .prod-cart-summary-empty { display: none; }
   .mgr-cart-right {
     display: flex;
     flex-direction: column;
@@ -1604,9 +1604,6 @@
   <div class="rotate-overlay-text">Переверните телефон — сайт удобнее смотреть в вертикальной ориентации</div>
 </div>
 
-<div class="offline-mini-bar" id="offlineMiniBarWrap">
-  <button class="offline-mini-link offline-save-btn" id="offlineMiniBar" onclick="document.getElementById('offlineDownloadModal')?.classList.add('open')">📲 Сохранить магазин на телефон</button>
-</div>
 <div class="pdf-mini-bar">
   <a class="pdf-mini-link" href="price-list.pdf" download>📄 Скачать PDF прайс (таблица)</a>
 </div>
@@ -3450,11 +3447,11 @@ function renderProductCards(items) {
                 ${(p.isReserved && p.stockQty != null) ? `<span class="prod-specs" style="color:#4a5b8c">🔒 Своб: ${p.publicQty}/${p.stockQty}${p.weighted?'гр':'шт'}</span>` : ''}
                 ${(!p.isReserved && p.stockQty != null) ? `<span class="prod-specs" style="color:#4a5b8c">Остаток: ${p.publicQty}${p.weighted?'гр':'шт'}</span>` : ''}
                 ${window.OFFLINE_SNAPSHOT ? '' : `<button class="prod-info-btn" onclick="openProductInfo(${p.id})">Описание</button>`}
+                ${managerCopyBtn}
               </span>
             </div>
             <div class="mgr-cart-col">
               ${mgrCartSummaryHtml}
-              ${managerCopyBtn}
             </div>
             <div class="mgr-counters">${countersHtml}</div>
             <div class="mgr-price-action">
