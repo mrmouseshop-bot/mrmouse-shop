@@ -287,7 +287,8 @@
   .product-card.manager-row .mgr-counters { grid-area: counters; min-width: 0; }
   .product-card.manager-row .prod-counters { align-items: flex-start; }
   .product-card.manager-row .counter-explain,
-  .product-card.manager-row .weight-min-note { display: none; } /* длинные пояснения — лишние для менеджера, экономим место */
+  .product-card.manager-row .weight-min-note,
+  .product-card.manager-row .weight-label { display: none; } /* длинные пояснения и "гр" — лишние для менеджера, экономим место */
   .product-card.manager-row .portion-hint { font-size: 0.62rem; margin-left: 4px; }
   .product-card.manager-row .weight-stepper { display: flex; align-items: center; }
   .product-card.manager-row .wstep-btn,
@@ -686,7 +687,7 @@
     cursor: pointer;
     padding: 2px 0;
     touch-action: manipulation;
-    vertical-align: bottom; /* <-- Добавили эту строку */
+    vertical-align: baseline;
   }
   .manager-copy-btn {
     background: none;
@@ -699,7 +700,7 @@
     padding: 2px 0;
     margin-left: 8px;
     touch-action: manipulation;
-    vertical-align: bottom; /* <-- Добавили эту строку */
+    vertical-align: baseline;
   }
 
   .prod-thumb {
