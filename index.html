@@ -342,6 +342,49 @@
     /* 58px оказалось впритык — плейсхолдер "от 300"/"~7500" обрезался
        на 1 символ (не хватало ~5-8px) — чуть шире и мельче шрифтом */
     .product-card.manager-row .weight-input { width: 66px; font-size: 0.72rem; }
+    /* На десктопе строка-квалификатор (акционная старая цена / "~вес,
+       тариф" у approxPiece) свободно "выплывает" вверх над ценником —
+       там степперы/ценник стоят СВОЕЙ колонкой рядом с именем/специфик.,
+       а не РЯДОМ снизу. В мобильной раскладке степперы и ценник — это
+       отдельная строка сетки ПОД строкой "Описание/Копировать прайс", и
+       тот же приём наезжал на неё. Даём этой строке дополнительный отступ
+       сверху — но только у карточек, где квалификатор реально есть
+       (:has), чтобы у обычных карточек не появлялось лишнего пустого
+       места. */
+    .product-card.manager-row:has(.prod-price-qualifier) .mgr-counters,
+    .product-card.manager-row:has(.prod-price-qualifier) .mgr-price-action {
+      margin-top: 14px;
+    }
+    /* У approxPiece-товаров (только степпер, без ряда "порций") под
+       степпером пустует место — по высоте ровно как соседняя кнопка
+       "в корзину". Раз оно всё равно пустое, кладём квалификатор именно
+       туда (как просили), а не над ценником — так отступ сверху вообще
+       не нужен, карточка остаётся компактной. Только когда НЕТ ряда
+       порций — если он есть (весовой товар на акции), это место занято
+       им, и остаётся прежнее поведение (клиренс над ценником). */
+    .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-counters,
+    .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action {
+      margin-top: 0;
+    }
+    .product-card.manager-row:has(.prod-price-qualifier):not(:has(.portion-row)) .mgr-price-action .prod-price-qualifier {
+      position: absolute;
+      /* .prod-price-block (containing block) сам стоит ВВЕРХУ 56px-колонки
+         mgr-price-action (первый flex-ребёнок при justify-content:
+         space-between) — поэтому top:30px от НЕГО ( = 56 - 26 ) попадает
+         точно на нижнюю строку колонки, на одном уровне с кнопкой
+         "в корзину"/пустующим местом под степпером, а не наверх */
+      top: 30px;
+      bottom: auto;
+      left: auto;
+      right: 100%;
+      margin: 0 10px 0 0;
+      width: 130px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      text-align: right;
+    }
   }
   .manager-bar-label {
     color: #fff;
