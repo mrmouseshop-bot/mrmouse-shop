@@ -139,7 +139,10 @@
      на body, левый margin занулён, чтобы не съезжало при auto-центровании
      из базового правила body { max-width:480px; margin:0 auto } */
   body.manager-mode { max-width: none; margin: 0; }
-  body.manager-mode .product-card { padding: 10px 14px; gap: 4px; }
+  /* Верхний паддинг чуть больше нижнего: нужен запас места над ценником —
+     туда теперь "выплывает" мелкая строка про акцию/примерный вес
+     (см. .prod-price-qualifier в manager-row), не сдвигая саму пилюлю */
+  body.manager-mode .product-card { padding: 16px 14px 10px; gap: 4px; }
   body.manager-mode .thumb-placeholder { font-size: 1.1rem; }
   body.manager-mode .prod-price-pill { padding: 2px 14px; font-size: 0.72rem; }
   body.manager-mode .products { gap: 6px; padding: 10px; }
@@ -161,15 +164,15 @@
      является гибким треком и сетка не может сжаться, поэтому вылезает. */
   .product-card.manager-row {
     display: grid;
-    /* Уменьшили ширины колонок: теперь сетка занимает меньше места, степперы
-       стоят плотнее, а пустота справа исчезнет */
-    grid-template-columns: 58px minmax(160px, 1fr) minmax(120px, 200px) 120px 110px;
+    /* Сужаем правые колонки (124px и 96px) и увеличиваем отступ между ними
+       (16px), чтобы разлепить степперы и кнопки */
+    grid-template-columns: 58px minmax(160px, 1fr) minmax(120px, 240px) 124px 96px;
     grid-template-rows: auto auto;
     grid-template-areas:
       "thumb name  cart counters priceaction"
       "thumb specs cart counters priceaction";
     align-items: center;
-    column-gap: 10px;
+    column-gap: 16px;
     row-gap: 0px;
   }
   .product-card.manager-row .prod-thumb { grid-area: thumb; width: 58px; height: 58px; }
@@ -212,37 +215,67 @@
     font-size: 0.68rem;
     padding: 5px 12px;
   }
-  /* Кнопка "в корзину" и цена — одна колонка сетки, кнопка сверху, цена снизу */
-  .product-card.manager-row .mgr-price-action {
-    grid-area: priceaction;
+  /* Кнопка "в корзину" и цена — одна колонка сетки, цена сверху, кнопка
+     снизу; счётчики (.prod-counters) — соседняя колонка той же высоты.
+     justify-content:space-between в обоих раздвигает верхний и нижний ряд
+     строго к краям фиксированной высоты 56px — поэтому верхний ряд (окно
+     веса / ценник) и нижний ряд (порции / кнопка "в корзину") у СОСЕДНИХ
+     колонок оказываются на одних горизонтальных линиях. У штучных
+     товаров, где внутри .prod-counters всего один ряд (степпер шт.), он
+     остаётся у верхнего края — на одном уровне с ценником. */
+  .product-card.manager-row .mgr-price-action,
+  .product-card.manager-row .prod-counters {
     display: flex;
     flex-direction: column;
-    align-items: stretch; /* растягиваем кнопки, чтобы они были равной ширины */
-    justify-content: center;
-    gap: 4px;
-    min-height: 56px; /* гарантируем место под кнопку+цену, даже если строка низкая */
+    justify-content: space-between;
+    height: 56px;
+    gap: 0;
     min-width: 0;
   }
-  .product-card.manager-row .mgr-price-action > * { flex-shrink: 0; }
-  .product-card.manager-row .mgr-price-action .prod-price-block { margin: 0; align-items: stretch; }
-  /* Кнопка "в корзину" и плашка цены — одинаковая ширина и высота: обе
-     растянуты на всю ширину колонки (align-items:stretch выше) и имеют
-     одинаковую фиксированную высоту 26px, без собственных отступов —
-     центрирование текста происходит через flex/justify-content, а не padding */
-  .product-card.manager-row .mgr-price-action .prod-price-pill {
-    box-sizing: border-box;
-    height: 26px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 0;
+  .product-card.manager-row .mgr-price-action {
+    grid-area: priceaction;
   }
+  .product-card.manager-row .mgr-price-action .prod-price-block,
+  .product-card.manager-row .mgr-actions {
+    margin: 0;
+    width: 100%;
+  }
+  /* У товаров со старой зачёркнутой ценой (акция) или с уточнением веса
+     approxPiece (".prod-price-qualifier") эта мелкая строка обычно стоит
+     НАД ценником и раздвигает .prod-price-block по высоте — из-за этого
+     сам ценник проседал ниже верхней строки степпера. Выносим её из
+     потока (position:absolute) и вешаем над пилюлей, не занимая места —
+     тогда .prod-price-block всегда ровно высотой с саму пилюлю (26px), и
+     верхний ряд (пилюля/окно веса) остаётся строго на одной линии
+     независимо от того, есть эта строка или нет */
+  .product-card.manager-row .mgr-price-action .prod-price-block {
+    position: relative;
+  }
+  .product-card.manager-row .mgr-price-action .prod-price-qualifier {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    margin: 0 0 2px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Кнопка "в корзину" и плашка цены — одинаковая ширина и высота: обе
+     занимают всю ширину своей компактной колонки и имеют одинаковую
+     фиксированную высоту 26px, без собственных отступов — центрирование
+     текста происходит через flex/justify-content, а не padding */
+  .product-card.manager-row .mgr-price-action .prod-price-pill,
   .product-card.manager-row .mgr-price-action .add-btn {
     box-sizing: border-box;
     height: 26px;
     width: 100%;
     padding: 0;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
   }
   /* Менеджеру отправлять заказ себе же в Telegram/WhatsApp/MAX незачем —
@@ -252,17 +285,31 @@
   body.manager-mode .send-max { display: none; }
   body.manager-mode .send-buttons { grid-template-columns: 1fr; }
   .product-card.manager-row .mgr-counters { grid-area: counters; min-width: 0; }
-  .product-card.manager-row .prod-counters { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .product-card.manager-row .prod-counters { align-items: flex-start; }
   .product-card.manager-row .counter-explain,
   .product-card.manager-row .weight-min-note { display: none; } /* длинные пояснения — лишние для менеджера, экономим место */
   .product-card.manager-row .portion-hint { font-size: 0.62rem; margin-left: 4px; }
   .product-card.manager-row .weight-stepper { display: flex; align-items: center; }
-  .product-card.manager-row .weight-input { width: 68px; padding: 4px 6px; font-size: 0.75rem; }
-  .product-card.manager-row .wstep-btn { width: 24px; height: 24px; font-size: 0.9rem; }
-  .product-card.manager-row .portion-btn { width: 22px; height: 22px; font-size: 0.75rem; }
+  .product-card.manager-row .wstep-btn,
+  .product-card.manager-row .portion-btn,
+  .product-card.manager-row .qty-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.9rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .product-card.manager-row .weight-input {
+    width: 64px;
+    height: 26px;
+    padding: 0 4px;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+  }
   .product-card.manager-row .portion-count { font-size: 0.82rem; }
   .product-card.manager-row .weight-label { font-size: 0.78rem; }
-  .product-card.manager-row .mgr-price-action .add-btn { font-size: 0.72rem; }
   .manager-bar-label {
     color: #fff;
     font-size: 0.68rem;
