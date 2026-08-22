@@ -161,7 +161,9 @@
      является гибким треком и сетка не может сжаться, поэтому вылезает. */
   .product-card.manager-row {
     display: grid;
-    grid-template-columns: 58px minmax(230px, 1fr) minmax(190px, 360px) minmax(165px, 200px) minmax(140px, 170px);
+    /* Сумма минимальных ширин теперь ~640px (вместе с gap), это гарантирует, что на полуэкране ничего не обрежется.
+       Максимальные ширины тоже поджаты, чтобы убрать лишнюю пустоту */
+    grid-template-columns: 58px minmax(160px, 1fr) minmax(140px, 260px) minmax(135px, 150px) minmax(110px, 130px);
     grid-template-rows: auto auto;
     grid-template-areas:
       "thumb name  cart counters priceaction"
@@ -195,7 +197,7 @@
      того, чтобы перенестись — из-за чего сетка карточки переполнялась и
      обрезалась по правому краю (там же обрезалась старая цена при акции) */
   .product-card.manager-row .mgr-cart-col { grid-area: cart; min-width: 0; }
-  .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 8px 14px; min-height: 40px; align-items: center; min-width: 0; }
+  .product-card.manager-row .prod-cart-summary { font-size: 0.7rem; padding: 4px 10px; min-height: 32px; align-items: center; min-width: 0; }
   .product-card.manager-row .prod-cart-summary > span:first-child { min-width: 0; overflow-wrap: break-word; }
   .product-card.manager-row .prod-cart-summary-empty { display: none; }
   .mgr-cart-right {
