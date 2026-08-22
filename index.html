@@ -2590,8 +2590,12 @@ function mapRecord(rec) {
   const reserveQty = typeof rec.ReserveQty === 'number' ? rec.ReserveQty : (hasStockQty && isReserved ? stockQty : 0);
   const publicQty = hasStockQty ? Math.max(0, stockQty - reserveQty) : null;
   // Что показать мелкой строкой в карточке рядом с флагом страны
+  // Для мигрированных штучных с плавающим весом (FloatingWeight) MinQty
+  // иногда заполнено не числом, а описательным текстом вроде "от 1шт" —
+  // раньше такой текст молча терялся (учитывался только числовой MinQty).
+  // Показываем его как есть, если числа нет.
   const minQtyDisplay = isMigrated
-    ? (minQtyNum ? `~${minQtyNum}гр` : null)
+    ? (minQtyNum ? `~${minQtyNum}гр` : (minQtyText || null))
     : (minQtyText || null);
   // Плашка "не режем" — раньше определялась угадыванием по названию товара
   // (хамон/прошутто и т.п.), теперь строго и явно: категория "Хамон/Нарезки"
@@ -5458,7 +5462,20 @@ function copyPositionText(id) {
     : p.priceMode === 'approxPiece'
       ? `${p.price}₽/${priceBaseLabel}`
       : `${p.unitPrice}₽`;
-  const text = `${p.name} - ${priceText}`;
+  // MinQty в прайс-копии: у весовых — берём как есть, а если поле вообще
+  // не заполнено, по умолчанию тот же общий минимум, что действует на
+  // сайте (MIN_WEIGHT). У штучных с плавающим весом (approxPiece) MinQty
+  // может содержать что-то вроде "от 1шт" — показываем как есть, если
+  // заполнено, ничего не придумываем, если нет. У обычных штучных (flat)
+  // MinQty вообще не показываем — оно там не имеет смысла.
+  const minQtyPart = p.priceMode === 'weight'
+    ? (p.minQty || `от ${MIN_WEIGHT}гр`)
+    : p.priceMode === 'approxPiece'
+      ? (p.minQty || '')
+      : '';
+  const extraParts = [minQtyPart, p.notCut ? 'не режем' : ''].filter(Boolean);
+  const extra = extraParts.length ? ` (${extraParts.join(', ')})` : '';
+  const text = `${p.name}${extra} - ${priceText}`;
   navigator.clipboard?.writeText(text).then(
     () => showToast('Скопировано: ' + text),
     () => showToast('Не удалось скопировать')
