@@ -314,6 +314,35 @@
   }
   .product-card.manager-row .portion-count { font-size: 0.82rem; }
   .product-card.manager-row .weight-label { font-size: 0.78rem; }
+
+  /* Менеджерский режим на телефоне: 5-колоночная сетка карточки (десктоп)
+     не влезает на узкий экран (нужно ~670px минимум). На узких экранах
+     перестраиваем в компактный "менеджерский" вид: миниатюра+название
+     сверху, характеристики и сводка корзины на всю ширину, а степперы и
+     цена/кнопка "в корзину" остаются РЯДОМ друг с другом в одной строке
+     внизу — сохраняем привычную менеджеру плотную компоновку, просто в
+     2 колонки вместо 5. Порог 920px, а не ~700 (реальный минимум для
+     5-колоночной сетки) — потому что менеджеру НЕ блокируем альбомную
+     ориентацию на телефоне (см. .rotate-overlay, порог 900px только для
+     клиента), и в landscape типичный телефон даёт как раз 700-900px:
+     без этого запаса на таких экранах пятиколоночная сетка технически
+     помещалась бы, но с уродливым переносом названия в 2-3 строки. */
+  @media (max-width: 920px) {
+    .product-card.manager-row {
+      grid-template-columns: 48px minmax(130px, 1fr) minmax(88px, 1fr);
+      grid-template-areas:
+        "thumb name  name"
+        "thumb specs specs"
+        "cart  cart  cart"
+        ".     counters priceaction";
+      column-gap: 10px;
+      row-gap: 6px;
+    }
+    .product-card.manager-row .prod-thumb { width: 48px; height: 48px; }
+    /* 58px оказалось впритык — плейсхолдер "от 300"/"~7500" обрезался
+       на 1 символ (не хватало ~5-8px) — чуть шире и мельче шрифтом */
+    .product-card.manager-row .weight-input { width: 66px; font-size: 0.72rem; }
+  }
   .manager-bar-label {
     color: #fff;
     font-size: 0.68rem;
